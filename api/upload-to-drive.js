@@ -74,7 +74,7 @@ module.exports = async (req, res) => {
       mimeType: 'application/json',
       // Uncomment and add your folder ID if you want to upload to a specific folder
       // Make sure the folder is shared with your service account email!
-      // parents: ['YOUR_FOLDER_ID_HERE']  
+       parents: ['1wMQmJmgZSID6LmHsmow2WlYC6eLYHIVG']  
     };
 
     const media = {
