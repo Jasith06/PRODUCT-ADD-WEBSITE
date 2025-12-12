@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator - POS System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .product-form {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .form-group input {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .product-list {
+            margin-top: 30px;
+        }
+
+        .product-item {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .product-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .product-info {
+            flex: 1;
+        }
+
+        .product-info h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .product-info p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .actions {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .output-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .qr-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .qr-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .qr-item canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .qr-item p {
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        #jsonOutput {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin-top: 15px;
+        }
+
+        .download-qr {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .download-qr canvas {
+            max-width: 300px;
+            margin: 20px auto;
+            display: block;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 10px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔳 QR Code Generator</h1>
+            <p>Professional POS System - Inventory Management</p>
+        </div>
+
+        <div class="content">
+            <!-- Add Product Section -->
+            <div class="section">
+                <h2 class="section-title">➕ Add Product</h2>
+                <div class="product-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productName">Product Name *</label>
+                            <input type="text" id="productName" placeholder="e.g., Rapidene 500mg" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="productPrice">Price (Rs.) *</label>
+                            <input type="number" id="productPrice" placeholder="150" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="productCount">Quantity *</label>
+                            <input type="number" id="productCount" placeholder="3" min="1" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productMfd">Manufacture Date *</label>
+                            <input type="date" id="productMfd" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="productExp">Expiry Date *</label>
+                            <input type="date" id="productExp" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="productPrefix">Product Prefix *</label>
+                            <input type="text" id="productPrefix" placeholder="RAPIDENE" required>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="addProduct()">➕ Add Product</button>
+                </div>
+            </div>
+
+            <!-- Product List Section -->
+            <div class="section">
+                <h2 class="section-title">📦 Products List (<span id="productCount">0</span>)</h2>
+                <div id="productList" class="product-list"></div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="section">
+                <h2 class="section-title">⚡ Generate Outputs</h2>
+                <div class="actions">
+                    <button class="btn btn-success" onclick="generateAll()">🚀 Generate QR Codes & JSON</button>
+                    <button class="btn btn-primary" onclick="downloadPDF()">📄 Download PDF</button>
+                    <button class="btn btn-primary" onclick="downloadJSON()">💾 Download JSON</button>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div id="outputSection" class="output-section" style="display: none;">
+                <h3 style="margin-bottom: 15px;">✅ Generated Successfully!</h3>
+                <div class="alert alert-info">
+                    <strong>📋 JSON Content:</strong> Copy this and paste in your mobile app's import screen
+                </div>
+                <textarea id="jsonOutput" readonly></textarea>
+                
+                <div class="download-qr" id="downloadQRSection" style="display: none;">
+                    <h3 style="margin: 20px 0;">📱 Scan to Import Data</h3>
+                    <p>Use this QR code to import the JSON data directly into your mobile app</p>
+                    <div id="jsonQRCode"></div>
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">🔳 QR Code Preview</h3>
+                <div id="qrPreview" class="qr-preview"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let products = [];
+        let generatedQRs = [];
+
+        // Set default dates
+        window.onload = function() {
+            const today = new Date();
+            const futureDate = new Date();
+            futureDate.setFullYear(today.getFullYear() + 2);
+            
+            document.getElementById('productMfd').valueAsDate = today;
+            document.getElementById('productExp').valueAsDate = futureDate;
+        };
+
+        function addProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value);
+            const count = parseInt(document.getElementById('productCount').value);
+            const mfd = document.getElementById('productMfd').value;
+            const exp = document.getElementById('productExp').value;
+            const prefix = document.getElementById('productPrefix').value.trim().toUpperCase();
+
+            if (!name || !price || !count || !mfd || !exp || !prefix) {
+                alert('⚠️ Please fill all fields!');
+                return;
+            }
+
+            const product = {
+                name: name,
+                price: `Rs. ${price}`,
+                priceNum: price,
+                count: count,
+                mfd: mfd,
+                exp: exp,
+                prefix: prefix
+            };
+
+            products.push(product);
+            updateProductList();
+            clearForm();
+        }
+
+        function clearForm() {
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('productCount').value = '';
+            document.getElementById('productPrefix').value = '';
+        }
+
+        function updateProductList() {
+            const listDiv = document.getElementById('productList');
+            const countSpan = document.getElementById('productCount');
+            
+            countSpan.textContent = products.length;
+
+            if (products.length === 0) {
+                listDiv.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No products added yet. Add your first product above! 👆</p>';
+                return;
+            }
+
+            listDiv.innerHTML = products.map((product, index) => `
+                <div class="product-item">
+                    <div class="product-info">
+                        <h3>${product.name}</h3>
+                        <p><strong>Price:</strong> ${product.price} | <strong>Qty:</strong> ${product.count} | <strong>Prefix:</strong> ${product.prefix}</p>
+                        <p><strong>MFD:</strong> ${product.mfd} | <strong>EXP:</strong> ${product.exp}</p>
+                    </div>
+                    <button class="btn btn-danger" onclick="removeProduct(${index})">🗑️ Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function removeProduct(index) {
+            products.splice(index, 1);
+            updateProductList();
+        }
+
+        function generateAll() {
+            if (products.length === 0) {
+                alert('⚠️ Please add at least one product!');
+                return;
+            }
+
+            generatedQRs = [];
+            const qrPreview = document.getElementById('qrPreview');
+            qrPreview.innerHTML = '';
+
+            // Generate QR codes
+            products.forEach(product => {
+                for (let i = 1; i <= product.count; i++) {
+                    const productNo = `${product.prefix}-${String(i).padStart(3, '0')}`;
+                    const data = `${product.name}|${product.price}|${product.mfd}|${product.exp}|${productNo}`;
+                    
+                    generatedQRs.push({
+                        productNo: productNo,
+                        name: product.name,
+                        price: product.price,
+                        data: data
+                    });
+
+                    // Create QR preview
+                    const qrDiv = document.createElement('div');
+                    qrDiv.className = 'qr-item';
+                    qrDiv.innerHTML = `<div id="qr-${productNo}"></div><p>${product.name}<br>${productNo}</p>`;
+                    qrPreview.appendChild(qrDiv);
+
+                    // Generate QR code
+                    new QRCode(document.getElementById(`qr-${productNo}`), {
+                        text: data,
+                        width: 128,
+                        height: 128
+                    });
+                }
+            });
+
+            // Generate JSON
+            const jsonData = generateInventoryJSON();
+            document.getElementById('jsonOutput').value = JSON.stringify(jsonData, null, 2);
+
+            // Generate QR code for JSON data
+            generateJSONQRCode(JSON.stringify(jsonData));
+
+            // Show output section
+            document.getElementById('outputSection').style.display = 'block';
+            document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function generateInventoryJSON() {
+            const inventory = [];
+            
+            products.forEach(product => {
+                for (let i = 1; i <= product.count; i++) {
+                    const productNo = `${product.prefix}-${String(i).padStart(3, '0')}`;
+                    
+                    inventory.push({
+                        productCode: productNo,
+                        name: product.name,
+                        price: product.priceNum,
+                        wholesalePrice: product.priceNum * 0.8,
+                        quantity: 1,
+                        lowStockThreshold: 10,
+                        category: "PHARMA",
+                        manufactureDate: product.mfd,
+                        expiryDate: product.exp,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            });
+
+            return inventory;
+        }
+
+        function generateJSONQRCode(jsonString) {
+            const qrSection = document.getElementById('downloadQRSection');
+            const qrDiv = document.getElementById('jsonQRCode');
+            
+            qrDiv.innerHTML = '';
+            qrSection.style.display = 'block';
+
+            new QRCode(qrDiv, {
+                text: jsonString,
+                width: 256,
+                height: 256,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function downloadJSON() {
+            if (generatedQRs.length === 0) {
+                alert('⚠️ Please generate QR codes first!');
+                return;
+            }
+
+            const jsonData = generateInventoryJSON();
+            const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `inventory_${new Date().getTime()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadPDF() {
+            if (generatedQRs.length === 0) {
+                alert('⚠️ Please generate QR codes first!');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            
+            const cols = 4;
+            const rows = 7;
+            const qrSize = 35;
+            const marginX = 15;
+            const marginY = 15;
+            const spacingX = (pageWidth - 2 * marginX) / cols;
+            const spacingY = (pageHeight - 2 * marginY) / rows;
+
+            let count = 0;
+            let pageNum = 1;
+
+            generatedQRs.forEach((qr, index) => {
+                if (count > 0 && count % (cols * rows) === 0) {
+                    doc.addPage();
+                    pageNum++;
+                    count = 0;
+                }
+
+                const col = count % cols;
+                const row = Math.floor(count / cols) % rows;
+                const x = marginX + col * spacingX;
+                const y = marginY + row * spacingY;
+
+                // Get QR code canvas
+                const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
+                if (canvas) {
+                    const imgData = canvas.toDataURL('image/png');
+                    doc.addImage(imgData, 'PNG', x, y, qrSize, qrSize);
+                    
+                    // Add text
+                    doc.setFontSize(8);
+                    const name = qr.name.length > 20 ? qr.name.substring(0, 20) + '...' : qr.name;
+                    doc.text(name, x + qrSize/2, y + qrSize + 4, { align: 'center' });
+                    
+                    doc.setFontSize(7);
+                    doc.text(qr.price, x + qrSize/2, y + qrSize + 8, { align: 'center' });
+                }
+
+                count++;
+            });
+
+            doc.save(`product_qrcodes_${new Date().getTime()}.pdf`);
+        }
+    </script>
+</body>
+</html>
