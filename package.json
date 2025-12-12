@@ -1,0 +1,14 @@
+{
+  "name": "qr-code-generator",
+  "version": "1.0.0",
+  "description": "QR Code Generator with Google Drive Integration",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "googleapis": "^118.0.0",
+    "google-auth-library": "^9.0.0"
+  }
+}
