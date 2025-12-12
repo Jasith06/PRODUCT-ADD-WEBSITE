@@ -72,7 +72,7 @@ module.exports = async (req, res) => {
     const fileMetadata = {
       name: filename,
       mimeType: 'application/json',
-      parents: ['YOUR_FOLDER_ID']  // Get this from your Google Drive folder URL
+      parents: ['1wMQmJmgZSID6LmHsmow2WlYC6eLYHIVG']  // Get this from your Google Drive folder URL
     };
 
     const media = {
