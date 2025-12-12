@@ -270,6 +270,40 @@
             padding: 10px;
             background: white;
         }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .drive-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border: 2px solid #4285f4;
+        }
+
+        .drive-link {
+            word-break: break-all;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -294,14 +328,7 @@
                             <select id="productCategory" required>
                                 <option value="PHARMA">PHARMA</option>
                                 <option value="GROCERY">GROCERY</option>
-                                <option value="CHOCOLATE">CHOCOLATE</option>
-								<option value="PERFUME">PERFUME</option>
-								<option value="TOILETRIES">TOILETRIES</option>
-								<option value="STATIONARY">STATIONARY</option>
-								<option value="ICE-CREAM">ICE-CREAM</option>
-								<option value="SKINCARE">SKINCARE</option>
-								<option value="BEAUTY">BEAUTY</option>
-								<option value="TOYS">TOYS</option>
+                                <option value="ELECTRONICS">ELECTRONICS</option>
                                 <option value="COSMETICS">COSMETICS</option>
                                 <option value="BEVERAGES">BEVERAGES</option>
                                 <option value="FOOD">FOOD</option>
@@ -348,6 +375,9 @@
                     <button class="btn btn-success" onclick="generateAll()">🚀 Generate QR Codes & JSON</button>
                     <button class="btn btn-primary" onclick="downloadPDF()">📄 Download PDF</button>
                     <button class="btn btn-primary" onclick="downloadJSON()">💾 Download JSON</button>
+                    <button class="btn btn-primary" onclick="uploadToDrive()" id="driveUploadBtn" style="display: none;">
+                        ☁️ Upload to Google Drive
+                    </button>
                 </div>
             </div>
 
@@ -367,6 +397,12 @@
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">🔳 QR Code Preview</h3>
                 <div id="qrPreview" class="qr-preview"></div>
+
+                <!-- Google Drive Upload Result -->
+                <div id="driveSection" class="drive-section" style="display: none;">
+                    <h3 style="color: #4285f4; margin-bottom: 15px;">☁️ Google Drive Upload</h3>
+                    <div id="driveResult"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -374,6 +410,10 @@
     <script>
         let products = [];
         let generatedQRs = [];
+        let currentJsonData = null;
+
+        // IMPORTANT: Replace this with your Vercel backend URL
+        const BACKEND_API = 'https://your-vercel-app.vercel.app/api/upload-to-drive';
 
         // Set default dates
         window.onload = function() {
@@ -481,18 +521,23 @@
                     qrDiv.innerHTML = `<div id="qr-${productNo}"></div><p>${product.name}<br>${productNo}</p>`;
                     qrPreview.appendChild(qrDiv);
 
-                    // Generate QR code
+                    // Generate QR code with same settings as Python (version 2, error correction M)
                     new QRCode(document.getElementById(`qr-${productNo}`), {
                         text: data,
                         width: 128,
-                        height: 128
+                        height: 128,
+                        correctLevel: QRCode.CorrectLevel.M  // Match Python's ERROR_CORRECT_M
                     });
                 }
             });
 
             // Generate JSON
             const jsonData = generateInventoryJSON();
+            currentJsonData = jsonData;
             document.getElementById('jsonOutput').value = JSON.stringify(jsonData, null, 2);
+
+            // Show Google Drive upload button
+            document.getElementById('driveUploadBtn').style.display = 'inline-block';
 
             // Generate QR code for JSON data
             generateJSONQRCode(JSON.stringify(jsonData));
@@ -565,53 +610,177 @@
             }
 
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
             
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageHeight = 297;  // A4 height
             
-            const cols = 4;
-            const rows = 7;
-            const qrSize = 35;
-            const marginX = 15;
-            const marginY = 15;
-            const spacingX = (pageWidth - 2 * marginX) / cols;
-            const spacingY = (pageHeight - 2 * marginY) / rows;
-
+            // EXACT Python script settings
+            const cols = 10;
+            const rows = 10;
+            const qrSizeMm = 16;
+            const spacingX = 18;  // 18mm spacing horizontally
+            const spacingY = 28;  // Increased vertical spacing for gap between rows (was 24)
+            const startX = 12;
+            const startYTop = 15;
+            
             let count = 0;
-            let pageNum = 1;
 
-            generatedQRs.forEach((qr, index) => {
-                if (count > 0 && count % (cols * rows) === 0) {
+            // Group QR codes by product (like Python script)
+            const productGroups = {};
+            generatedQRs.forEach(qr => {
+                const productName = qr.name;
+                if (!productGroups[productName]) {
+                    productGroups[productName] = [];
+                }
+                productGroups[productName].push(qr);
+            });
+
+            // Generate QR codes grouped by product
+            Object.keys(productGroups).forEach((productName, productIndex) => {
+                const qrs = productGroups[productName];
+                
+                // New page for each product (except first)
+                if (productIndex > 0) {
                     doc.addPage();
-                    pageNum++;
                     count = 0;
                 }
 
-                const col = count % cols;
-                const row = Math.floor(count / cols) % rows;
-                const x = marginX + col * spacingX;
-                const y = marginY + row * spacingY;
+                qrs.forEach((qr, qrIndex) => {
+                    // Check if we need a new page (after 100 QR codes)
+                    if (count > 0 && count % (cols * rows) === 0) {
+                        doc.addPage();
+                        count = 0;
+                    }
 
-                // Get QR code canvas
-                const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
-                if (canvas) {
-                    const imgData = canvas.toDataURL('image/png');
-                    doc.addImage(imgData, 'PNG', x, y, qrSize, qrSize);
+                    const col = count % cols;
+                    const row = Math.floor(count / cols) % rows;
                     
-                    // Add text
-                    doc.setFontSize(8);
-                    const name = qr.name.length > 20 ? qr.name.substring(0, 20) + '...' : qr.name;
-                    doc.text(name, x + qrSize/2, y + qrSize + 4, { align: 'center' });
-                    
-                    doc.setFontSize(7);
-                    doc.text(qr.price, x + qrSize/2, y + qrSize + 8, { align: 'center' });
-                }
+                    // Position calculation - spacing is measured from TOP of each QR code
+                    // So row 0 = 15mm, row 1 = 15+24=39mm, row 2 = 15+48=63mm, etc.
+                    const x = startX + col * spacingX;
+                    const y = startYTop + row * spacingY;
 
-                count++;
+                    // Get QR code canvas
+                    const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
+                    if (canvas) {
+                        const imgData = canvas.toDataURL('image/png');
+                        doc.addImage(imgData, 'PNG', x, y, qrSizeMm, qrSizeMm);
+                        
+                        // Text below QR code
+                        // Python: text_y = y - 3mm (which in Python coords means below)
+                        // In jsPDF visual: y + qrSize + 3mm gap before text
+                        const textY = y + qrSizeMm + 3;
+                        
+                        // Product name (6pt font, truncated to 15 chars)
+                        doc.setFontSize(6);
+                        doc.setFont('helvetica', 'normal');
+                        let displayName = qr.name;
+                        if (displayName.length > 16) {
+                            displayName = displayName.substring(0, 15) + '…';
+                        }
+                        
+                        // Center text
+                        const textWidth = doc.getTextWidth(displayName);
+                        const textX = x + (qrSizeMm - textWidth) / 2;
+                        doc.text(displayName, textX, textY);
+                        
+                        // Price (5pt font) - 4mm below product name
+                        doc.setFontSize(5);
+                        const priceText = `Price: ${qr.price}`;
+                        const priceWidth = doc.getTextWidth(priceText);
+                        const priceX = x + (qrSizeMm - priceWidth) / 2;
+                        doc.text(priceText, priceX, textY + 4);
+                    }
+
+                    count++;
+                });
             });
 
             doc.save(`product_qrcodes_${new Date().getTime()}.pdf`);
+        }
+
+        async function uploadToDrive() {
+            if (!currentJsonData) {
+                alert('⚠️ Please generate QR codes first!');
+                return;
+            }
+
+            const btn = document.getElementById('driveUploadBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="loading"></span>Uploading...';
+            btn.disabled = true;
+
+            try {
+                const filename = `inventory_${new Date().getTime()}.json`;
+
+                const response = await fetch(BACKEND_API, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        jsonData: currentJsonData,
+                        filename: filename
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Show success message
+                    const driveSection = document.getElementById('driveSection');
+                    const driveResult = document.getElementById('driveResult');
+                    
+                    driveResult.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>✅ Upload Successful!</strong>
+                        </div>
+                        <p><strong>📎 File ID:</strong> ${result.fileId}</p>
+                        <p><strong>🔗 Download Link:</strong></p>
+                        <div class="drive-link">${result.downloadLink}</div>
+                        <button class="btn btn-primary" onclick="copyToClipboard('${result.downloadLink}')">
+                            📋 Copy Link
+                        </button>
+                        <div id="driveLinkQR" style="margin-top: 20px;">
+                            <h4>📱 Scan to Download from Drive</h4>
+                        </div>
+                    `;
+                    
+                    driveSection.style.display = 'block';
+
+                    // Generate QR code for download link
+                    setTimeout(() => {
+                        new QRCode(document.getElementById('driveLinkQR'), {
+                            text: result.downloadLink,
+                            width: 256,
+                            height: 256,
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+                    }, 100);
+
+                    driveSection.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert('❌ Upload failed: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('❌ Upload failed: ' + error.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Link copied to clipboard!');
+            }).catch(err => {
+                alert('❌ Failed to copy: ' + err);
+            });
         }
     </script>
 </body>
