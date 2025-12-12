@@ -1,5 +1,5 @@
 // api/upload-to-drive.js
-// Updated to use OAuth2 instead of Service Account
+// RECOMMENDED: Service Account Version (No manual authorization needed)
 
 const { google } = require('googleapis');
 
@@ -30,27 +30,34 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Check for required environment variables
-    if (!process.env.GOOGLE_REFRESH_TOKEN) {
+    // Check for Service Account credentials
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
       return res.status(500).json({ 
         success: false, 
-        error: 'Server not configured. Please set GOOGLE_REFRESH_TOKEN environment variable.' 
+        error: 'Server not configured. Missing GOOGLE_SERVICE_ACCOUNT environment variable.' 
       });
     }
 
-    // OAuth2 Client Configuration
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost'
-    );
+    // Parse Service Account credentials
+    let credentials;
+    try {
+      credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+    } catch (parseError) {
+      console.error('Failed to parse credentials:', parseError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Invalid credentials format' 
+      });
+    }
 
-    // Set refresh token
-    oauth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+    // Authenticate with Service Account
+    const auth = new google.auth.GoogleAuth({
+      credentials: credentials,
+      scopes: ['https://www.googleapis.com/auth/drive.file'],
     });
 
-    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+    const authClient = await auth.getClient();
+    const drive = google.drive({ version: 'v3', auth: authClient });
 
     // Prepare file content
     const fileContent = JSON.stringify(jsonData, null, 2);
@@ -60,11 +67,10 @@ module.exports = async (req, res) => {
     const { Readable } = require('stream');
     const stream = Readable.from(buffer);
 
-    // File metadata with folder location
+    // File metadata
     const fileMetadata = {
       name: filename,
       mimeType: 'application/json',
-      parents: ['YOUR_FOLDER_ID_HERE'] // Add this line
     };
 
     const media = {
