@@ -67,10 +67,12 @@ module.exports = async (req, res) => {
     const { Readable } = require('stream');
     const stream = Readable.from(buffer);
 
-    // File metadata
+    // File metadata with folder ID
+    // IMPORTANT: Replace 'YOUR_FOLDER_ID' with your actual Google Drive folder ID
     const fileMetadata = {
       name: filename,
       mimeType: 'application/json',
+      parents: ['YOUR_FOLDER_ID']  // Get this from your Google Drive folder URL
     };
 
     const media = {
