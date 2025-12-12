@@ -31,3 +31,9 @@ npm-debug.log*
 # Keep package.json and vercel.json
 !package.json
 !vercel.json
+
+# Add these lines to prevent committing sensitive files
+*-key.json
+service-account*.json
+credentials.json
+token.json
