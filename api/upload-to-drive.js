@@ -60,10 +60,11 @@ module.exports = async (req, res) => {
     const { Readable } = require('stream');
     const stream = Readable.from(buffer);
 
-    // File metadata
+    // File metadata with folder location
     const fileMetadata = {
       name: filename,
       mimeType: 'application/json',
+      parents: ['YOUR_FOLDER_ID_HERE'] // Add this line
     };
 
     const media = {
