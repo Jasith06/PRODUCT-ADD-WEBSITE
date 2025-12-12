@@ -1,1 +1,33 @@
+# Service Account credentials (NEVER commit these!)
+*-key.json
+service-account*.json
 
+# OAuth credentials
+credentials.json
+token.json
+
+# Node modules
+node_modules/
+
+# Vercel
+.vercel
+
+# Environment variables
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Keep package.json and vercel.json
+!package.json
+!vercel.json
