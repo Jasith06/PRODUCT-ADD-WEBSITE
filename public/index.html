@@ -245,6 +245,10 @@
             border: 1px solid #bee5eb;
         }
 
+        .json-container {
+            position: relative;
+        }
+
         #jsonOutput {
             width: 100%;
             min-height: 200px;
@@ -254,6 +258,30 @@
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
             margin-top: 15px;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 25px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .copy-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
         }
 
         .download-qr {
@@ -286,23 +314,6 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-
-        .drive-section {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            border: 2px solid #4285f4;
-        }
-
-        .drive-link {
-            word-break: break-all;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 5px;
-            font-family: monospace;
-            margin: 10px 0;
         }
     </style>
 </head>
@@ -375,9 +386,6 @@
                     <button class="btn btn-success" onclick="generateAll()">🚀 Generate QR Codes & JSON</button>
                     <button class="btn btn-primary" onclick="downloadPDF()">📄 Download PDF</button>
                     <button class="btn btn-primary" onclick="downloadJSON()">💾 Download JSON</button>
-                    <button class="btn btn-primary" onclick="uploadToDrive()" id="driveUploadBtn" style="display: none;">
-                        ☁️ Upload to Google Drive
-                    </button>
                 </div>
             </div>
 
@@ -387,7 +395,10 @@
                 <div class="alert alert-info">
                     <strong>📋 JSON Content:</strong> Copy this and paste in your mobile app's import screen
                 </div>
-                <textarea id="jsonOutput" readonly></textarea>
+                <div class="json-container">
+                    <button class="copy-btn" onclick="copyJSON()" id="copyBtn">📋 Copy JSON</button>
+                    <textarea id="jsonOutput" readonly></textarea>
+                </div>
                 
                 <div class="download-qr" id="downloadQRSection" style="display: none;">
                     <h3 style="margin: 20px 0;">📱 Scan to Import Data</h3>
@@ -397,12 +408,6 @@
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">🔳 QR Code Preview</h3>
                 <div id="qrPreview" class="qr-preview"></div>
-
-                <!-- Google Drive Upload Result -->
-                <div id="driveSection" class="drive-section" style="display: none;">
-                    <h3 style="color: #4285f4; margin-bottom: 15px;">☁️ Google Drive Upload</h3>
-                    <div id="driveResult"></div>
-                </div>
             </div>
         </div>
     </div>
@@ -411,9 +416,6 @@
         let products = [];
         let generatedQRs = [];
         let currentJsonData = null;
-
-        // IMPORTANT: Replace this with your Vercel backend URL
-        const BACKEND_API = '/api/upload-to-drive';
 
         // Set default dates
         window.onload = function() {
@@ -536,9 +538,6 @@
             currentJsonData = jsonData;
             document.getElementById('jsonOutput').value = JSON.stringify(jsonData, null, 2);
 
-            // Show Google Drive upload button
-            document.getElementById('driveUploadBtn').style.display = 'inline-block';
-
             // Generate QR code for JSON data
             generateJSONQRCode(JSON.stringify(jsonData));
 
@@ -584,6 +583,25 @@
                 width: 256,
                 height: 256,
                 correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function copyJSON() {
+            const jsonText = document.getElementById('jsonOutput').value;
+            const copyBtn = document.getElementById('copyBtn');
+            
+            navigator.clipboard.writeText(jsonText).then(() => {
+                // Change button appearance
+                copyBtn.textContent = '✅ Copied!';
+                copyBtn.classList.add('copied');
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    copyBtn.textContent = '📋 Copy JSON';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                alert('❌ Failed to copy: ' + err);
             });
         }
 
@@ -701,86 +719,6 @@
             });
 
             doc.save(`product_qrcodes_${new Date().getTime()}.pdf`);
-        }
-
-        async function uploadToDrive() {
-            if (!currentJsonData) {
-                alert('⚠️ Please generate QR codes first!');
-                return;
-            }
-
-            const btn = document.getElementById('driveUploadBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span class="loading"></span>Uploading...';
-            btn.disabled = true;
-
-            try {
-                const filename = `inventory_${new Date().getTime()}.json`;
-
-                const response = await fetch(BACKEND_API, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        jsonData: currentJsonData,
-                        filename: filename
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // Show success message
-                    const driveSection = document.getElementById('driveSection');
-                    const driveResult = document.getElementById('driveResult');
-                    
-                    driveResult.innerHTML = `
-                        <div class="alert alert-success">
-                            <strong>✅ Upload Successful!</strong>
-                        </div>
-                        <p><strong>📎 File ID:</strong> ${result.fileId}</p>
-                        <p><strong>🔗 Download Link:</strong></p>
-                        <div class="drive-link">${result.downloadLink}</div>
-                        <button class="btn btn-primary" onclick="copyToClipboard('${result.downloadLink}')">
-                            📋 Copy Link
-                        </button>
-                        <div id="driveLinkQR" style="margin-top: 20px;">
-                            <h4>📱 Scan to Download from Drive</h4>
-                        </div>
-                    `;
-                    
-                    driveSection.style.display = 'block';
-
-                    // Generate QR code for download link
-                    setTimeout(() => {
-                        new QRCode(document.getElementById('driveLinkQR'), {
-                            text: result.downloadLink,
-                            width: 256,
-                            height: 256,
-                            correctLevel: QRCode.CorrectLevel.H
-                        });
-                    }, 100);
-
-                    driveSection.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                    alert('❌ Upload failed: ' + result.error);
-                }
-            } catch (error) {
-                console.error('Upload error:', error);
-                alert('❌ Upload failed: ' + error.message);
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
-
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert('✅ Link copied to clipboard!');
-            }).catch(err => {
-                alert('❌ Failed to copy: ' + err);
-            });
         }
     </script>
 </body>
