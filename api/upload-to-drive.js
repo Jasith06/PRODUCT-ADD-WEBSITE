@@ -1,5 +1,5 @@
 // api/upload-to-drive.js
-// Service Account Version - FIXED: No parents field
+// Service Account - Upload to YOUR shared folder
 
 const { google } = require('googleapis');
 
@@ -30,11 +30,18 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Check for Service Account credentials
+    // Check for required environment variables
     if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
       return res.status(500).json({ 
         success: false, 
-        error: 'Server not configured. Missing GOOGLE_SERVICE_ACCOUNT environment variable.' 
+        error: 'GOOGLE_SERVICE_ACCOUNT not configured' 
+      });
+    }
+
+    if (!process.env.GOOGLE_DRIVE_FOLDER_ID) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'GOOGLE_DRIVE_FOLDER_ID not configured. Please add your shared folder ID to Vercel environment variables.' 
       });
     }
 
@@ -50,6 +57,8 @@ module.exports = async (req, res) => {
       });
     }
 
+    console.log('Authenticating with service account:', credentials.client_email);
+
     // Authenticate with Service Account
     const auth = new google.auth.GoogleAuth({
       credentials: credentials,
@@ -59,6 +68,8 @@ module.exports = async (req, res) => {
     const authClient = await auth.getClient();
     const drive = google.drive({ version: 'v3', auth: authClient });
 
+    console.log('Authentication successful');
+
     // Prepare file content
     const fileContent = JSON.stringify(jsonData, null, 2);
     const buffer = Buffer.from(fileContent, 'utf-8');
@@ -67,11 +78,11 @@ module.exports = async (req, res) => {
     const { Readable } = require('stream');
     const stream = Readable.from(buffer);
 
-    // IMPORTANT: NO 'parents' field - uploads to root
+    // Upload to YOUR shared folder
     const fileMetadata = {
       name: filename,
-      mimeType: 'application/json'
-      // REMOVED: parents: ['...']  <-- This was causing the error!
+      mimeType: 'application/json',
+      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID]  // Your folder ID from environment variable
     };
 
     const media = {
@@ -79,7 +90,7 @@ module.exports = async (req, res) => {
       body: stream,
     };
 
-    console.log(`Uploading ${filename}...`);
+    console.log(`Uploading ${filename} to folder ${process.env.GOOGLE_DRIVE_FOLDER_ID}...`);
 
     // Upload to Drive
     const file = await drive.files.create({
@@ -88,9 +99,10 @@ module.exports = async (req, res) => {
       fields: 'id, webViewLink, name',
     });
 
-    console.log(`File uploaded: ${file.data.id}`);
+    console.log(`File uploaded successfully! ID: ${file.data.id}`);
 
     // Make publicly accessible
+    console.log('Setting public permissions...');
     await drive.permissions.create({
       fileId: file.data.id,
       requestBody: {
@@ -98,6 +110,8 @@ module.exports = async (req, res) => {
         role: 'reader',
       },
     });
+
+    console.log('File is now public');
 
     const downloadLink = `https://drive.google.com/uc?export=download&id=${file.data.id}`;
 
@@ -107,16 +121,30 @@ module.exports = async (req, res) => {
       downloadLink: downloadLink,
       webViewLink: file.data.webViewLink,
       fileName: file.data.name,
+      message: 'File uploaded successfully!'
     });
 
   } catch (error) {
     console.error('Upload error:', error);
-    console.error('Error details:', error.message);
+    console.error('Error message:', error.message);
+    
+    let errorMessage = error.message || 'Upload failed';
+    let hint = '';
+    
+    if (error.message.includes('File not found') || error.message.includes('Insufficient permissions')) {
+      errorMessage = 'Cannot access folder';
+      hint = 'Make sure the folder is shared with your service account email: ' + 
+             (process.env.GOOGLE_SERVICE_ACCOUNT ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT).client_email : 'unknown');
+    } else if (error.message.includes('storage quota')) {
+      errorMessage = 'Storage quota error';
+      hint = 'Make sure you are uploading to a folder in YOUR Google Drive that is shared with the service account.';
+    }
     
     return res.status(500).json({
       success: false,
-      error: error.message || 'Upload failed',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: errorMessage,
+      hint: hint,
+      details: error.message
     });
   }
 };
