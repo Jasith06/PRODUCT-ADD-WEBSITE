@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Code Generator - POS System</title>
-    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -24,7 +24,7 @@
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background-image: url('/assets/app_bg.png');
+            background-image: url('app_bg.png');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -762,13 +762,13 @@
             const rows = 10;
             const qrSizeMm = 16;
             const spacingX = 18;  // 18mm spacing horizontally
-            const spacingY = 28;  // Increased vertical spacing for gap between rows (was 24)
+            const spacingY = 28;  // Increased vertical spacing for gap between rows
             const startX = 12;
             const startYTop = 15;
             
             let count = 0;
 
-            // Group QR codes by product (like Python script)
+            // Group QR codes by product
             const productGroups = {};
             generatedQRs.forEach(qr => {
                 const productName = qr.name;
@@ -798,8 +798,6 @@
                     const col = count % cols;
                     const row = Math.floor(count / cols) % rows;
                     
-                    // Position calculation - spacing is measured from TOP of each QR code
-                    // So row 0 = 15mm, row 1 = 15+24=39mm, row 2 = 15+48=63mm, etc.
                     const x = startX + col * spacingX;
                     const y = startYTop + row * spacingY;
 
@@ -809,9 +807,6 @@
                         const imgData = canvas.toDataURL('image/png');
                         doc.addImage(imgData, 'PNG', x, y, qrSizeMm, qrSizeMm);
                         
-                        // Text below QR code
-                        // Python: text_y = y - 3mm (which in Python coords means below)
-                        // In jsPDF visual: y + qrSize + 3mm gap before text
                         const textY = y + qrSizeMm + 3;
                         
                         // Product name (6pt font, truncated to 15 chars)
@@ -827,7 +822,7 @@
                         const textX = x + (qrSizeMm - textWidth) / 2;
                         doc.text(displayName, textX, textY);
                         
-                        // Price (5pt font) - 4mm below product name
+                        // Price (5pt font)
                         doc.setFontSize(5);
                         const priceText = `Price: ${qr.price}`;
                         const priceWidth = doc.getTextWidth(priceText);
