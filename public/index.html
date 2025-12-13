@@ -425,6 +425,10 @@
                             <input type="number" id="productPrice" placeholder="150" required>
                         </div>
                         <div class="form-group">
+                            <label for="productWholesalePrice">Wholesale Price (Rs.) *</label>
+                            <input type="number" id="productWholesalePrice" placeholder="120" required>
+                        </div>
+                        <div class="form-group">
                             <label for="productCount">Quantity *</label>
                             <input type="number" id="productCount" placeholder="3" min="1" required>
                         </div>
@@ -505,12 +509,13 @@
             const name = document.getElementById('productName').value.trim();
             const category = document.getElementById('productCategory').value;
             const price = parseFloat(document.getElementById('productPrice').value);
+            const wholesalePrice = parseFloat(document.getElementById('productWholesalePrice').value);
             const count = parseInt(document.getElementById('productCount').value);
             const mfd = document.getElementById('productMfd').value;
             const exp = document.getElementById('productExp').value;
             const prefix = document.getElementById('productPrefix').value.trim().toUpperCase();
 
-            if (!name || !category || !price || !count || !mfd || !exp || !prefix) {
+            if (!name || !category || !price || !wholesalePrice || !count || !mfd || !exp || !prefix) {
                 alert('⚠️ Please fill all fields!');
                 return;
             }
@@ -520,6 +525,7 @@
                 category: category,
                 price: `Rs. ${price}`,
                 priceNum: price,
+                wholesalePrice: wholesalePrice,
                 count: count,
                 mfd: mfd,
                 exp: exp,
@@ -534,6 +540,7 @@
         function clearForm() {
             document.getElementById('productName').value = '';
             document.getElementById('productPrice').value = '';
+            document.getElementById('productWholesalePrice').value = '';
             document.getElementById('productCount').value = '';
             document.getElementById('productPrefix').value = '';
             document.getElementById('productCategory').value = 'PHARMA';
@@ -554,7 +561,7 @@
                 <div class="product-item">
                     <div class="product-info">
                         <h3>${product.name}<span class="category-badge">${product.category}</span></h3>
-                        <p><strong>Price:</strong> ${product.price} | <strong>Qty:</strong> ${product.count} | <strong>Prefix:</strong> ${product.prefix}</p>
+                        <p><strong>Price:</strong> ${product.price} | <strong>Wholesale:</strong> Rs. ${product.wholesalePrice} | <strong>Qty:</strong> ${product.count} | <strong>Prefix:</strong> ${product.prefix}</p>
                         <p><strong>MFD:</strong> ${product.mfd} | <strong>EXP:</strong> ${product.exp}</p>
                     </div>
                     <button class="btn btn-danger" onclick="removeProduct(${index})">🗑️ Remove</button>
@@ -631,7 +638,7 @@
                         productCode: productNo,
                         name: product.name,
                         price: product.priceNum,
-                        wholesalePrice: product.priceNum * 0.8,
+                        wholesalePrice: product.wholesalePrice,
                         quantity: 1,
                         lowStockThreshold: 10,
                         category: product.category,
