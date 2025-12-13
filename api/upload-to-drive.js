@@ -1,5 +1,5 @@
 // api/upload-to-drive.js
-// Service Account Version with better error handling
+// Service Account Version - FIXED: No parents field
 
 const { google } = require('googleapis');
 
@@ -67,14 +67,11 @@ module.exports = async (req, res) => {
     const { Readable } = require('stream');
     const stream = Readable.from(buffer);
 
-    // File metadata - OPTION 1: Upload to root (no parents specified)
-    // OPTION 2: Upload to specific folder (must be shared with service account)
+    // IMPORTANT: NO 'parents' field - uploads to root
     const fileMetadata = {
       name: filename,
-      mimeType: 'application/json',
-      // Uncomment and add your folder ID if you want to upload to a specific folder
-      // Make sure the folder is shared with your service account email!
-       parents: ['1wMQmJmgZSID6LmHsmow2WlYC6eLYHIVG']  
+      mimeType: 'application/json'
+      // REMOVED: parents: ['...']  <-- This was causing the error!
     };
 
     const media = {
@@ -116,18 +113,9 @@ module.exports = async (req, res) => {
     console.error('Upload error:', error);
     console.error('Error details:', error.message);
     
-    // Provide more helpful error messages
-    let errorMessage = error.message || 'Upload failed';
-    
-    if (error.message.includes('Insufficient permissions')) {
-      errorMessage = 'Insufficient permissions. Please share the Google Drive folder with your service account email.';
-    } else if (error.message.includes('File not found')) {
-      errorMessage = 'The specified folder does not exist or is not accessible.';
-    }
-    
     return res.status(500).json({
       success: false,
-      error: errorMessage,
+      error: error.message || 'Upload failed',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
