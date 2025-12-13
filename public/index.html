@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Code Generator - POS System</title>
+    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -23,10 +24,32 @@
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
+            background-image: url('/assets/app_bg.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             overflow: hidden;
+            position: relative;
+        }
+
+        /* Add a semi-transparent overlay to improve text readability */
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.85);
+            z-index: 0;
+        }
+
+        /* Ensure content is above the overlay */
+        .header, .content {
+            position: relative;
+            z-index: 1;
         }
 
         .header {
@@ -79,10 +102,11 @@
         }
 
         .product-form {
-            background: #f8f9fa;
+            background: rgba(248, 249, 250, 0.95);
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 20px;
+            backdrop-filter: blur(10px);
         }
 
         .form-row {
@@ -110,11 +134,13 @@
             border-radius: 8px;
             font-size: 1em;
             transition: border-color 0.3s;
+            background: rgba(255, 255, 255, 0.9);
         }
 
         .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #667eea;
+            background: white;
         }
 
         .btn {
@@ -189,7 +215,7 @@
         }
 
         .product-item {
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 15px;
@@ -198,11 +224,13 @@
             justify-content: space-between;
             align-items: center;
             transition: all 0.3s;
+            backdrop-filter: blur(10px);
         }
 
         .product-item:hover {
             border-color: #667eea;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 1);
         }
 
         .product-info {
@@ -238,10 +266,11 @@
         }
 
         .output-section {
-            background: #f8f9fa;
+            background: rgba(248, 249, 250, 0.95);
             padding: 25px;
             border-radius: 15px;
             margin-top: 20px;
+            backdrop-filter: blur(10px);
         }
 
         .qr-preview {
@@ -254,9 +283,10 @@
         .qr-item {
             text-align: center;
             padding: 15px;
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 10px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
         }
 
         .qr-item canvas {
@@ -301,6 +331,7 @@
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
             margin-top: 15px;
+            background: rgba(255, 255, 255, 0.95);
         }
 
         .copy-btn {
