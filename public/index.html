@@ -679,6 +679,31 @@
             });
         }
 
+        // Helper function to detect mobile devices
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Fallback download function that works better on mobile
+        function fallbackDownload(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            
+            // Add to document for better mobile support
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+
+        // MOBILE-FRIENDLY JSON DOWNLOAD
         function downloadJSON() {
             if (generatedQRs.length === 0) {
                 alert('⚠️ Please generate QR codes first!');
@@ -686,15 +711,30 @@
             }
 
             const jsonData = generateInventoryJSON();
-            const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `inventory_${new Date().getTime()}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const jsonString = JSON.stringify(jsonData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const fileName = `inventory_${new Date().getTime()}.json`;
+            
+            // Mobile-friendly download with Web Share API
+            if (navigator.share && isMobileDevice()) {
+                const file = new File([blob], fileName, {
+                    type: 'application/json'
+                });
+                
+                navigator.share({
+                    files: [file],
+                    title: 'Inventory JSON',
+                    text: 'Download inventory data'
+                }).catch(err => {
+                    console.log('Share failed:', err);
+                    fallbackDownload(blob, fileName);
+                });
+            } else {
+                fallbackDownload(blob, fileName);
+            }
         }
 
+        // MOBILE-FRIENDLY PDF DOWNLOAD
         function downloadPDF() {
             if (generatedQRs.length === 0) {
                 alert('⚠️ Please generate QR codes first!');
@@ -792,7 +832,24 @@
                 });
             });
 
-            doc.save(`product_qrcodes_${new Date().getTime()}.pdf`);
+            // Mobile-friendly PDF download
+            const pdfBlob = doc.output('blob');
+            const fileName = `product_qrcodes_${new Date().getTime()}.pdf`;
+            
+            if (navigator.share && isMobileDevice()) {
+                const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+                
+                navigator.share({
+                    files: [file],
+                    title: 'Product QR Codes',
+                    text: 'Download QR codes PDF'
+                }).catch(err => {
+                    console.log('Share failed:', err);
+                    fallbackDownload(pdfBlob, fileName);
+                });
+            } else {
+                fallbackDownload(pdfBlob, fileName);
+            }
         }
     </script>
 </body>
