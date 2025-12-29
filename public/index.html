@@ -808,7 +808,7 @@
         }
 
         async function downloadPDF() {
-            if (generatedQRs.length === 0) {
+            if (!generatedQRs || generatedQRs.length === 0) {
                 alert('⚠️ Please generate QR codes first!');
                 return;
             }
