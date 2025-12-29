@@ -617,8 +617,9 @@
                 document.getElementById('outputSection').style.display = 'block';
                 document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
 
-                // Generate QR code for JSON data
-                generateJSONQRCode(JSON.stringify(jsonData));
+                // Generate QR code for JSON data (may fail for large datasets)
+                 // Generate QR code for JSON data
+                   generateJSONQRCode(JSON.stringify(jsonData));
 
                 // Prepare all QR data
                 let allQRData = [];
