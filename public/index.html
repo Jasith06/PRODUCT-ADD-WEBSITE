@@ -828,135 +828,139 @@
         }
 
         async function downloadPDF() {
-            if (generatedQRs.length === 0) {
-                alert('⚠️ Please generate QR codes first!');
-                return;
+    if (generatedQRs.length === 0) {
+        alert('⚠️ Please generate QR codes first!');
+        return;
+    }
+
+    showProgress();
+    updateProgress(0, 'Preparing PDF...');
+    
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        
+        const cols = 10;
+        const rows = 10;
+        const qrSizeMm = 16;
+        const spacingX = 18;
+        const spacingY = 28;
+        const startX = 12;
+        const startYTop = 15;
+        
+        let count = 0;
+        let isFirstPage = true;
+
+        // Group QR codes by product
+        const productGroups = {};
+        generatedQRs.forEach(qr => {
+            const productName = qr.name;
+            if (!productGroups[productName]) {
+                productGroups[productName] = [];
+            }
+            productGroups[productName].push(qr);
+        });
+
+        const totalProducts = Object.keys(productGroups).length;
+        let processedProducts = 0;
+
+        // Generate PDF with batching
+        for (const [productName, qrs] of Object.entries(productGroups)) {
+            processedProducts++;
+            const percent = 10 + (processedProducts / totalProducts) * 80; // 10-90%
+            updateProgress(percent, `Adding ${productName} to PDF... (${processedProducts}/${totalProducts})`);
+
+            // Add new page for each product (except the very first one)
+            if (!isFirstPage) {
+                doc.addPage();
+                count = 0;
+            }
+            isFirstPage = false;
+
+            for (let qrIndex = 0; qrIndex < qrs.length; qrIndex++) {
+                const qr = qrs[qrIndex];
+                
+                // Check if we need a new page (after 100 QR codes per page)
+                if (count > 0 && count % (cols * rows) === 0) {
+                    doc.addPage();
+                    count = 0;
+                }
+
+                const col = count % cols;
+                const row = Math.floor(count / cols) % rows;
+                
+                const x = startX + col * spacingX;
+                const y = startYTop + row * spacingY;
+
+                const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
+                if (canvas) {
+                    const imgData = canvas.toDataURL('image/png');
+                    doc.addImage(imgData, 'PNG', x, y, qrSizeMm, qrSizeMm);
+                    
+                    const textY = y + qrSizeMm + 3;
+                    
+                    doc.setFontSize(6);
+                    doc.setFont('helvetica', 'normal');
+                    let displayName = qr.name;
+                    if (displayName.length > 16) {
+                        displayName = displayName.substring(0, 15) + '…';
+                    }
+                    
+                    const textWidth = doc.getTextWidth(displayName);
+                    const textX = x + (qrSizeMm - textWidth) / 2;
+                    doc.text(displayName, textX, textY);
+                    
+                    doc.setFontSize(5);
+                    const priceText = `Price: ${qr.price}`;
+                    const priceWidth = doc.getTextWidth(priceText);
+                    const priceX = x + (qrSizeMm - priceWidth) / 2;
+                    doc.text(priceText, priceX, textY + 4);
+                }
+
+                count++;
             }
 
-            showProgress();
-            updateProgress(0, 'Preparing PDF...');
-            
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-                
-                const cols = 10;
-                const rows = 10;
-                const qrSizeMm = 16;
-                const spacingX = 18;
-                const spacingY = 28;
-                const startX = 12;
-                const startYTop = 15;
-                
-                let count = 0;
-
-                // Group QR codes by product
-                const productGroups = {};
-                generatedQRs.forEach(qr => {
-                    const productName = qr.name;
-                    if (!productGroups[productName]) {
-                        productGroups[productName] = [];
-                    }
-                    productGroups[productName].push(qr);
-                });
-
-                const totalProducts = Object.keys(productGroups).length;
-                let processedProducts = 0;
-
-                // Generate PDF with batching
-                for (const [productName, qrs] of Object.entries(productGroups)) {
-                    processedProducts++;
-                    const percent = 10 + (processedProducts / totalProducts) * 70; // 10-80%
-                    updateProgress(percent, `Adding ${productName} to PDF... (${processedProducts}/${totalProducts})`);
-
-                    if (processedProducts > 1) {
-                        doc.addPage();
-                        count = 0;
-                    }
-
-                    for (let qrIndex = 0; qrIndex < qrs.length; qrIndex++) {
-                        const qr = qrs[qrIndex];
-                        
-                        if (count > 0 && count % (cols * rows) === 0) {
-                            doc.addPage();
-                            count = 0;
-                        }
-
-                        const col = count % cols;
-                        const row = Math.floor(count / cols) % rows;
-                        
-                        const x = startX + col * spacingX;
-                        const y = startYTop + row * spacingY;
-
-                        const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
-                        if (canvas) {
-                            const imgData = canvas.toDataURL('image/png');
-                            doc.addImage(imgData, 'PNG', x, y, qrSizeMm, qrSizeMm);
-                            
-                            const textY = y + qrSizeMm + 3;
-                            
-                            doc.setFontSize(6);
-                            doc.setFont('helvetica', 'normal');
-                            let displayName = qr.name;
-                            if (displayName.length > 16) {
-                                displayName = displayName.substring(0, 15) + '…';
-                            }
-                            
-                            const textWidth = doc.getTextWidth(displayName);
-                            const textX = x + (qrSizeMm - textWidth) / 2;
-                            doc.text(displayName, textX, textY);
-                            
-                            doc.setFontSize(5);
-                            const priceText = `Price: ${qr.price}`;
-                            const priceWidth = doc.getTextWidth(priceText);
-                            const priceX = x + (qrSizeMm - priceWidth) / 2;
-                            doc.text(priceText, priceX, textY + 4);
-                        }
-
-                        count++;
-                    }
-
-                    // Small delay between products
-                    if (processedProducts < totalProducts) {
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                    }
-                }
-
-                updateProgress(90, 'Finalizing PDF...');
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // Download PDF
-                const pdfBlob = doc.output('blob');
-                const fileName = `product_qrcodes_${new Date().getTime()}.pdf`;
-                
-                updateProgress(100, 'PDF ready! ✅');
-                await new Promise(resolve => setTimeout(resolve, 300));
-                
-                if (navigator.share && isMobileDevice()) {
-                    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-                    
-                    navigator.share({
-                        files: [file],
-                        title: 'Product QR Codes',
-                        text: 'Download QR codes PDF'
-                    }).catch(err => {
-                        console.log('Share failed:', err);
-                        fallbackDownload(pdfBlob, fileName);
-                    });
-                } else {
-                    fallbackDownload(pdfBlob, fileName);
-                }
-            } catch (error) {
-                alert('❌ Error generating PDF: ' + error.message);
-                console.error(error);
-            } finally {
-                hideProgress();
+            // Small delay between products
+            if (processedProducts < totalProducts) {
+                await new Promise(resolve => setTimeout(resolve, 50));
             }
         }
+
+        updateProgress(95, 'Finalizing PDF...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Download PDF
+        const pdfBlob = doc.output('blob');
+        const fileName = `product_qrcodes_${new Date().getTime()}.pdf`;
+        
+        updateProgress(100, 'PDF ready! ✅');
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        if (navigator.share && isMobileDevice()) {
+            const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+            
+            navigator.share({
+                files: [file],
+                title: 'Product QR Codes',
+                text: 'Download QR codes PDF'
+            }).catch(err => {
+                console.log('Share failed:', err);
+                fallbackDownload(pdfBlob, fileName);
+            });
+        } else {
+            fallbackDownload(pdfBlob, fileName);
+        }
+    } catch (error) {
+        alert('❌ Error generating PDF: ' + error.message);
+        console.error(error);
+    } finally {
+        hideProgress();
+    }
+}
     </script>
 </body>
 </html>
