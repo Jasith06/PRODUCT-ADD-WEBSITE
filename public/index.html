@@ -146,7 +146,7 @@
         }
 
         .btn:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
         }
 
@@ -260,6 +260,42 @@
             flex-wrap: wrap;
         }
 
+        .progress-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .progress-text {
+            margin-top: 10px;
+            text-align: center;
+            color: #666;
+            font-size: 0.95em;
+        }
+
         .output-section {
             background: rgba(248, 249, 250, 0.95);
             padding: 25px;
@@ -301,12 +337,6 @@
             margin-bottom: 20px;
         }
 
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
         .alert-info {
             background: #d1ecf1;
             color: #0c5460;
@@ -342,7 +372,6 @@
             font-size: 0.9em;
             font-weight: 600;
             transition: all 0.3s;
-            z-index: 10;
         }
 
         .copy-btn:hover {
@@ -368,29 +397,6 @@
             padding: 10px;
             background: white;
         }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .progress-text {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 10px;
-        }
     </style>
 </head>
 <body>
@@ -401,6 +407,7 @@
         </div>
 
         <div class="content">
+            <!-- Add Product Section -->
             <div class="section">
                 <h2 class="section-title">Add Product</h2>
                 <div class="product-form">
@@ -414,7 +421,6 @@
                             <select id="productCategory" required>
                                 <option value="TABLETS">TABLETS</option>
                                 <option value="BEAUTY">BEAUTY</option>
-                                <option value="CHOCOLATES">CHOCOLATES</option>
                                 <option value="TOILETRIES">TOILETRIES</option>
                                 <option value="ICE_CREAM">ICE CREAM</option>
                                 <option value="DAIRY">DAIRY</option>
@@ -466,20 +472,31 @@
                 </div>
             </div>
 
+            <!-- Product List Section -->
             <div class="section">
                 <h2 class="section-title">📦 Products List (<span id="productCount">0</span>)</h2>
                 <div id="productList" class="product-list"></div>
             </div>
 
+            <!-- Actions Section -->
             <div class="section">
                 <h2 class="section-title">⚡ Generate Outputs</h2>
                 <div class="actions">
-                    <button class="btn btn-success" id="generateBtn" onclick="generateAll()">🚀 Generate QR Codes & JSON</button>
-                    <button class="btn btn-pdf" id="pdfBtn" onclick="downloadPDF()">📄 Download PDF</button>
-                    <button class="btn btn-json" id="jsonBtn" onclick="downloadJSON()">💾 Download JSON</button>
+                    <button class="btn btn-success" onclick="generateAll()" id="generateBtn">🚀 Generate QR Codes & JSON</button>
+                    <button class="btn btn-pdf" onclick="downloadPDF()" id="pdfBtn">📄 Download PDF</button>
+                    <button class="btn btn-json" onclick="downloadJSON()" id="jsonBtn">💾 Download JSON</button>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+                    </div>
+                    <div class="progress-text" id="progressText">Initializing...</div>
                 </div>
             </div>
 
+            <!-- Output Section -->
             <div id="outputSection" class="output-section" style="display: none;">
                 <h3 style="margin-bottom: 15px;">✅ Generated Successfully!</h3>
                 <div class="alert alert-info">
@@ -497,7 +514,6 @@
                 </div>
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">🔳 QR Code Preview</h3>
-                <div id="progressContainer"></div>
                 <div id="qrPreview" class="qr-preview"></div>
             </div>
         </div>
@@ -507,8 +523,8 @@
         let products = [];
         let generatedQRs = [];
         let currentJsonData = null;
-        let qrCodeCache = new Map();
 
+        // Set default dates
         window.onload = function() {
             const today = new Date();
             const futureDate = new Date();
@@ -533,18 +549,16 @@
                 return;
             }
 
-            // Validate quantity for performance
-            if (count > 500) {
-                alert('⚠️ For better performance, please limit quantity to 500 per product. You can add the product multiple times.');
-                return;
-            }
-
             const product = {
-                name, category,
+                name: name,
+                category: category,
                 price: `Rs. ${price}`,
                 priceNum: price,
-                wholesalePrice,
-                count, mfd, exp, prefix
+                wholesalePrice: wholesalePrice,
+                count: count,
+                mfd: mfd,
+                exp: exp,
+                prefix: prefix
             };
 
             products.push(product);
@@ -564,6 +578,7 @@
         function updateProductList() {
             const listDiv = document.getElementById('productList');
             const countSpan = document.getElementById('productCount');
+            
             countSpan.textContent = products.length;
 
             if (products.length === 0) {
@@ -588,132 +603,129 @@
             updateProductList();
         }
 
+        function showProgress() {
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('pdfBtn').disabled = true;
+            document.getElementById('jsonBtn').disabled = true;
+        }
+
+        function hideProgress() {
+            document.getElementById('progressContainer').style.display = 'none';
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('pdfBtn').disabled = false;
+            document.getElementById('jsonBtn').disabled = false;
+        }
+
+        function updateProgress(percent, text) {
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            progressFill.style.width = percent + '%';
+            progressFill.textContent = Math.round(percent) + '%';
+            progressText.textContent = text;
+        }
+
+        // Batch process QR codes with delays
+        async function generateQRCodesBatch(qrList, batchSize = 25) {
+            const qrPreview = document.getElementById('qrPreview');
+            qrPreview.innerHTML = '';
+
+            for (let i = 0; i < qrList.length; i += batchSize) {
+                const batch = qrList.slice(i, i + batchSize);
+                const percent = 20 + ((i + batch.length) / qrList.length) * 40; // 20-60%
+                updateProgress(percent, `Generating QR codes... ${i + batch.length}/${qrList.length}`);
+
+                // Process batch
+                batch.forEach(qr => {
+                    const qrDiv = document.createElement('div');
+                    qrDiv.className = 'qr-item';
+                    qrDiv.innerHTML = `<div id="qr-${qr.productNo}"></div><p>${qr.name}<br>${qr.productNo}</p>`;
+                    qrPreview.appendChild(qrDiv);
+
+                    new QRCode(document.getElementById(`qr-${qr.productNo}`), {
+                        text: qr.data,
+                        width: 128,
+                        height: 128,
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                });
+
+                // Small delay to prevent browser freeze
+                if (i + batchSize < qrList.length) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+        }
+
         async function generateAll() {
             if (products.length === 0) {
                 alert('⚠️ Please add at least one product!');
                 return;
             }
 
-            const generateBtn = document.getElementById('generateBtn');
-            const originalText = generateBtn.innerHTML;
-            generateBtn.innerHTML = '<span class="loading"></span>Generating...';
-            generateBtn.disabled = true;
-
-            await new Promise(resolve => setTimeout(resolve, 100));
-
+            showProgress();
+            generatedQRs = [];
+            
             try {
-                generatedQRs = [];
-                const qrPreview = document.getElementById('qrPreview');
-                const progressContainer = document.getElementById('progressContainer');
-                qrPreview.innerHTML = '';
-                progressContainer.innerHTML = '';
-
-                // Generate JSON immediately (fast operation)
-                const jsonData = generateInventoryJSON();
-                currentJsonData = jsonData;
-                document.getElementById('jsonOutput').value = JSON.stringify(jsonData, null, 2);
-
-                // Show output section early
-                document.getElementById('outputSection').style.display = 'block';
-                document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
-
-                // Generate QR code for JSON data (may fail for large datasets)
-                 // Generate QR code for JSON data
-                   generateJSONQRCode(JSON.stringify(jsonData));
-
-                // Prepare all QR data
-                let allQRData = [];
+                // Step 1: Build QR list
+                updateProgress(10, 'Preparing data...');
+                
                 products.forEach(product => {
                     for (let i = 1; i <= product.count; i++) {
                         const productNo = `${product.prefix}-${String(i).padStart(3, '0')}`;
                         const data = `${product.name}|${product.price}|${product.mfd}|${product.exp}|${productNo}`;
-                        allQRData.push({
-                            productNo, name: product.name,
+                        
+                        generatedQRs.push({
+                            productNo: productNo,
+                            name: product.name,
                             price: product.price,
                             category: product.category,
-                            data
+                            data: data
                         });
                     }
                 });
 
-                const totalQRs = allQRData.length;
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Step 2: Generate QR codes in batches
+                await generateQRCodesBatch(generatedQRs);
+
+                // Step 3: Generate JSON
+                updateProgress(70, 'Generating JSON data...');
+                await new Promise(resolve => setTimeout(resolve, 100));
                 
-                // Show progress message for large batches
-                if (totalQRs > 50) {
-                    progressContainer.innerHTML = `<div class="alert alert-info"><strong>⏳ Processing ${totalQRs} QR codes...</strong> Showing first 50 in preview. All codes will be included in PDF.</div>`;
-                }
+                const jsonData = generateInventoryJSON();
+                currentJsonData = jsonData;
+                document.getElementById('jsonOutput').value = JSON.stringify(jsonData, null, 2);
 
-                // Limit preview for performance
-                const previewLimit = 50;
-                const batchSize = 10;
+                // Step 4: Generate JSON QR code
+                updateProgress(85, 'Creating JSON QR code...');
+                await new Promise(resolve => setTimeout(resolve, 100));
+                generateJSONQRCode(JSON.stringify(jsonData));
 
-                for (let i = 0; i < allQRData.length; i += batchSize) {
-                    const batch = allQRData.slice(i, i + batchSize);
-                    
-                    batch.forEach((qrData, idx) => {
-                        generatedQRs.push(qrData);
-                        const globalIndex = i + idx;
+                // Step 5: Complete
+                updateProgress(100, 'Complete! ✅');
+                await new Promise(resolve => setTimeout(resolve, 500));
 
-                        if (globalIndex < previewLimit) {
-                            const qrDiv = document.createElement('div');
-                            qrDiv.className = 'qr-item';
-                            qrDiv.innerHTML = `<div id="qr-${qrData.productNo}"></div><p>${qrData.name}<br>${qrData.productNo}</p>`;
-                            qrPreview.appendChild(qrDiv);
-
-                            new QRCode(document.getElementById(`qr-${qrData.productNo}`), {
-                                text: qrData.data,
-                                width: 128,
-                                height: 128,
-                                correctLevel: QRCode.CorrectLevel.M
-                            });
-                        } else {
-                            // Generate hidden QR for PDF generation
-                            if (!qrCodeCache.has(qrData.productNo)) {
-                                const hiddenDiv = document.createElement('div');
-                                hiddenDiv.id = `qr-hidden-${qrData.productNo}`;
-                                hiddenDiv.style.display = 'none';
-                                document.body.appendChild(hiddenDiv);
-
-                                new QRCode(hiddenDiv, {
-                                    text: qrData.data,
-                                    width: 128,
-                                    height: 128,
-                                    correctLevel: QRCode.CorrectLevel.M
-                                });
-                            }
-                        }
-                    });
-
-                    // Update progress
-                    if (totalQRs > 50 && i + batchSize < allQRData.length) {
-                        const progress = Math.min(100, Math.round(((i + batchSize) / totalQRs) * 100));
-                        progressContainer.innerHTML = `<div class="alert alert-info"><strong>⏳ Generating: ${progress}%</strong> (${Math.min(i + batchSize, totalQRs)}/${totalQRs} codes)</div>`;
-                    }
-
-                    // Allow UI update
-                    if (i + batchSize < allQRData.length) {
-                        await new Promise(resolve => setTimeout(resolve, 20));
-                    }
-                }
-
-                // Final message
-                if (totalQRs > previewLimit) {
-                    progressContainer.innerHTML = `<div class="alert alert-success"><strong>✅ All ${totalQRs} QR codes generated!</strong> Showing ${previewLimit} in preview. All codes included in PDF.</div>`;
-                } else {
-                    progressContainer.innerHTML = `<div class="alert alert-success"><strong>✅ All ${totalQRs} QR codes generated!</strong></div>`;
-                }
-
+                // Show output section
+                document.getElementById('outputSection').style.display = 'block';
+                document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                alert('❌ Error generating QR codes: ' + error.message);
+                console.error(error);
             } finally {
-                generateBtn.innerHTML = originalText;
-                generateBtn.disabled = false;
+                hideProgress();
             }
         }
 
         function generateInventoryJSON() {
             const inventory = [];
+            
             products.forEach(product => {
                 for (let i = 1; i <= product.count; i++) {
                     const productNo = `${product.prefix}-${String(i).padStart(3, '0')}`;
+                    
                     inventory.push({
                         productCode: productNo,
                         name: product.name,
@@ -728,12 +740,14 @@
                     });
                 }
             });
+
             return inventory;
         }
 
         function generateJSONQRCode(jsonString) {
             const qrSection = document.getElementById('downloadQRSection');
             const qrDiv = document.getElementById('jsonQRCode');
+            
             qrDiv.innerHTML = '';
             qrSection.style.display = 'block';
 
@@ -752,11 +766,14 @@
             navigator.clipboard.writeText(jsonText).then(() => {
                 copyBtn.textContent = '✅ Copied!';
                 copyBtn.classList.add('copied');
+                
                 setTimeout(() => {
                     copyBtn.textContent = '📋 Copy JSON';
                     copyBtn.classList.remove('copied');
                 }, 2000);
-            }).catch(err => alert('❌ Failed to copy: ' + err));
+            }).catch(err => {
+                alert('❌ Failed to copy: ' + err);
+            });
         }
 
         function isMobileDevice() {
@@ -769,8 +786,10 @@
             a.style.display = 'none';
             a.href = url;
             a.download = filename;
+            
             document.body.appendChild(a);
             a.click();
+            
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
@@ -778,135 +797,106 @@
         }
 
         function downloadJSON() {
-            if (!currentJsonData || currentJsonData.length === 0) {
+            if (generatedQRs.length === 0) {
                 alert('⚠️ Please generate QR codes first!');
                 return;
             }
 
-            const jsonBtn = document.getElementById('jsonBtn');
-            const originalText = jsonBtn.innerHTML;
-            jsonBtn.innerHTML = '<span class="loading"></span>Preparing...';
-            jsonBtn.disabled = true;
-
-            try {
-                const jsonString = JSON.stringify(currentJsonData, null, 2);
-                const blob = new Blob([jsonString], { type: 'application/json' });
-                const fileName = `inventory_${new Date().getTime()}.json`;
+            const jsonData = generateInventoryJSON();
+            const jsonString = JSON.stringify(jsonData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const fileName = `inventory_${new Date().getTime()}.json`;
+            
+            if (navigator.share && isMobileDevice()) {
+                const file = new File([blob], fileName, {
+                    type: 'application/json'
+                });
                 
-                if (navigator.share && isMobileDevice()) {
-                    const file = new File([blob], fileName, { type: 'application/json' });
-                    navigator.share({ files: [file], title: 'Inventory JSON', text: 'Download inventory data' })
-                        .catch(() => fallbackDownload(blob, fileName));
-                } else {
+                navigator.share({
+                    files: [file],
+                    title: 'Inventory JSON',
+                    text: 'Download inventory data'
+                }).catch(err => {
+                    console.log('Share failed:', err);
                     fallbackDownload(blob, fileName);
-                }
-            } finally {
-                setTimeout(() => {
-                    jsonBtn.innerHTML = originalText;
-                    jsonBtn.disabled = false;
-                }, 500);
+                });
+            } else {
+                fallbackDownload(blob, fileName);
             }
         }
 
         async function downloadPDF() {
-            if (!generatedQRs || generatedQRs.length === 0) {
+            if (generatedQRs.length === 0) {
                 alert('⚠️ Please generate QR codes first!');
                 return;
             }
 
-            const pdfBtn = document.getElementById('pdfBtn');
-            const originalText = pdfBtn.innerHTML;
-            pdfBtn.innerHTML = '<span class="loading"></span>Generating PDF...';
-            pdfBtn.disabled = true;
-
+            showProgress();
+            updateProgress(0, 'Preparing PDF...');
+            
             try {
-                await new Promise(resolve => setTimeout(resolve, 100));
-
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
                 
-                const cols = 10, rows = 10, qrSizeMm = 16;
-                const spacingX = 18, spacingY = 28;
-                const startX = 12, startYTop = 15;
+                const cols = 10;
+                const rows = 10;
+                const qrSizeMm = 16;
+                const spacingX = 18;
+                const spacingY = 28;
+                const startX = 12;
+                const startYTop = 15;
+                
                 let count = 0;
-                let pageCount = 0;
 
+                // Group QR codes by product
                 const productGroups = {};
                 generatedQRs.forEach(qr => {
-                    if (!productGroups[qr.name]) productGroups[qr.name] = [];
-                    productGroups[qr.name].push(qr);
+                    const productName = qr.name;
+                    if (!productGroups[productName]) {
+                        productGroups[productName] = [];
+                    }
+                    productGroups[productName].push(qr);
                 });
 
-                // Generate PDF in batches
-                const productNames = Object.keys(productGroups);
-                
-                for (let productIndex = 0; productIndex < productNames.length; productIndex++) {
-                    const productName = productNames[productIndex];
-                    const qrs = productGroups[productName];
-                    
-                    // New page for each product (except first)
-                    if (productIndex > 0 && count > 0) {
+                const totalProducts = Object.keys(productGroups).length;
+                let processedProducts = 0;
+
+                // Generate PDF with batching
+                for (const [productName, qrs] of Object.entries(productGroups)) {
+                    processedProducts++;
+                    const percent = 10 + (processedProducts / totalProducts) * 70; // 10-80%
+                    updateProgress(percent, `Adding ${productName} to PDF... (${processedProducts}/${totalProducts})`);
+
+                    if (processedProducts > 1) {
                         doc.addPage();
-                        pageCount++;
                         count = 0;
                     }
 
-                    for (let i = 0; i < qrs.length; i++) {
-                        const qr = qrs[i];
+                    for (let qrIndex = 0; qrIndex < qrs.length; qrIndex++) {
+                        const qr = qrs[qrIndex];
                         
-                        // Check if we need a new page (after 100 QR codes)
                         if (count > 0 && count % (cols * rows) === 0) {
                             doc.addPage();
-                            pageCount++;
                             count = 0;
                         }
 
                         const col = count % cols;
                         const row = Math.floor(count / cols) % rows;
+                        
                         const x = startX + col * spacingX;
                         const y = startYTop + row * spacingY;
 
-                        // Get QR code image data
-                        let imgData;
-                        let canvas;
-                        
-                        // Try to get from visible preview first
-                        canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
-                        if (!canvas) {
-                            // Try hidden QR code
-                            canvas = document.querySelector(`#qr-hidden-${qr.productNo} canvas`);
-                            if (!canvas) {
-                                // Generate on the fly
-                                const tempDiv = document.createElement('div');
-                                tempDiv.style.position = 'absolute';
-                                tempDiv.style.left = '-9999px';
-                                document.body.appendChild(tempDiv);
-                                
-                                new QRCode(tempDiv, {
-                                    text: qr.data,
-                                    width: 128,
-                                    height: 128,
-                                    correctLevel: QRCode.CorrectLevel.M
-                                });
-                                
-                                // Wait a bit for rendering
-                                await new Promise(resolve => setTimeout(resolve, 5));
-                                canvas = tempDiv.querySelector('canvas');
-                                imgData = canvas.toDataURL('image/png');
-                                document.body.removeChild(tempDiv);
-                            }
-                        }
-                        
-                        if (!imgData && canvas) {
-                            imgData = canvas.toDataURL('image/png');
-                        }
-                        
-                        if (imgData) {
+                        const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
+                        if (canvas) {
+                            const imgData = canvas.toDataURL('image/png');
                             doc.addImage(imgData, 'PNG', x, y, qrSizeMm, qrSizeMm);
                             
                             const textY = y + qrSizeMm + 3;
                             
-                            // Product name (truncated)
                             doc.setFontSize(6);
                             doc.setFont('helvetica', 'normal');
                             let displayName = qr.name;
@@ -918,7 +908,6 @@
                             const textX = x + (qrSizeMm - textWidth) / 2;
                             doc.text(displayName, textX, textY);
                             
-                            // Price
                             doc.setFontSize(5);
                             const priceText = `Price: ${qr.price}`;
                             const priceWidth = doc.getTextWidth(priceText);
@@ -927,55 +916,45 @@
                         }
 
                         count++;
-
-                        // Yield to prevent UI freeze for large PDFs
-                        if (i % 50 === 0) {
-                            await new Promise(resolve => setTimeout(resolve, 0));
-                        }
                     }
 
-                    // Update progress for large batches
-                    if (generatedQRs.length > 100 && productIndex < productNames.length - 1) {
-                        const progress = Math.round(((productIndex + 1) / productNames.length) * 100);
-                        pdfBtn.innerHTML = `<span class="loading"></span>${progress}%...`;
+                    // Small delay between products
+                    if (processedProducts < totalProducts) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
                     }
                 }
 
-                // Add footer with page numbers
-                for (let i = 0; i <= pageCount; i++) {
-                    doc.setPage(i);
-                    doc.setFontSize(8);
-                    doc.setFont('helvetica', 'italic');
-                    doc.text(`Page ${i + 1} of ${pageCount + 1} - Generated on ${new Date().toLocaleDateString()}`, 
-                             doc.internal.pageSize.width / 2, 285, { align: 'center' });
-                }
+                updateProgress(90, 'Finalizing PDF...');
+                await new Promise(resolve => setTimeout(resolve, 100));
 
                 // Download PDF
                 const pdfBlob = doc.output('blob');
                 const fileName = `product_qrcodes_${new Date().getTime()}.pdf`;
                 
+                updateProgress(100, 'PDF ready! ✅');
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
                 if (navigator.share && isMobileDevice()) {
                     const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-                    navigator.share({ files: [file], title: 'Product QR Codes', text: 'Download QR codes PDF' })
-                        .catch(() => fallbackDownload(pdfBlob, fileName));
+                    
+                    navigator.share({
+                        files: [file],
+                        title: 'Product QR Codes',
+                        text: 'Download QR codes PDF'
+                    }).catch(err => {
+                        console.log('Share failed:', err);
+                        fallbackDownload(pdfBlob, fileName);
+                    });
                 } else {
                     fallbackDownload(pdfBlob, fileName);
                 }
-
+            } catch (error) {
+                alert('❌ Error generating PDF: ' + error.message);
+                console.error(error);
             } finally {
-                pdfBtn.innerHTML = originalText;
-                pdfBtn.disabled = false;
+                hideProgress();
             }
         }
-
-        // Clean up hidden elements on page unload
-        window.addEventListener('beforeunload', () => {
-            document.querySelectorAll('[id^="qr-hidden-"]').forEach(el => {
-                if (el.parentNode) {
-                    el.parentNode.removeChild(el);
-                }
-            });
-        });
     </script>
 </body>
 </html>
