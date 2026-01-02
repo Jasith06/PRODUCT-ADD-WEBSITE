@@ -566,7 +566,8 @@
                 quantity: quantity,
                 mfd: mfd,
                 exp: exp,
-                prefix: prefix
+                prefix: prefix,
+                id: Date.now() + Math.random() // Unique ID for each product
             };
 
             products.push(product);
@@ -704,7 +705,8 @@
                             category: product.category,
                             data: data,
                             mfd: product.mfd,
-                            exp: product.exp
+                            exp: product.exp,
+                            productId: product.id // Store which product this QR belongs to
                         });
                     }
                 });
@@ -874,97 +876,145 @@
                 const startX = 12;
                 const startYTop = 15;
                 
-                let totalCount = 0;
-                let currentPageCount = 0;
-                let pageNumber = 1;
+                let totalPages = 0;
+                let currentProductIndex = 0;
                 let addedQRs = new Set(); // Track which QR codes we've added
 
-                // Generate PDF ensuring all QR codes are included
-                for (let i = 0; i < generatedQRs.length; i++) {
-                    const qr = generatedQRs[i];
-                    
-                    // Skip if we've already added this QR code
-                    if (addedQRs.has(qr.productNo)) {
-                        continue;
+                // Group QR codes by product
+                const productGroups = {};
+                generatedQRs.forEach(qr => {
+                    if (!productGroups[qr.productId]) {
+                        productGroups[qr.productId] = [];
                     }
+                    productGroups[qr.productId].push(qr);
+                });
+
+                const productIds = Object.keys(productGroups);
+                const totalProducts = productIds.length;
+
+                // Generate PDF with each product on separate pages
+                for (let p = 0; p < productIds.length; p++) {
+                    const productId = productIds[p];
+                    const productQRs = productGroups[productId];
                     
-                    // Add new page if current page is full
-                    if (currentPageCount >= cols * rows) {
+                    // Start each product on a new page (except the first one)
+                    if (p > 0) {
                         doc.addPage();
-                        currentPageCount = 0;
-                        pageNumber++;
+                        totalPages++;
                     }
-
-                    const col = currentPageCount % cols;
-                    const row = Math.floor(currentPageCount / cols) % rows;
                     
-                    const x = startX + col * spacingX;
-                    const y = startYTop + row * spacingY;
-
-                    // Get canvas from our stored canvases
-                    const canvas = qrCanvases[qr.productNo];
+                    let currentPageCount = 0;
+                    const productName = productQRs[0].name;
                     
-                    if (canvas) {
-                        try {
-                            const imgData = canvas.toDataURL('image/png');
-                            doc.addImage(imgData, 'PNG', x, y, qrSizeMm, qrSizeMm);
-                            
-                            const textY = y + qrSizeMm + 3;
-                            
-                            doc.setFontSize(6);
-                            doc.setFont('helvetica', 'normal');
-                            let displayName = qr.name;
-                            if (displayName.length > 16) {
-                                displayName = displayName.substring(0, 15) + '…';
-                            }
-                            
-                            const textWidth = doc.getTextWidth(displayName);
-                            const textX = x + (qrSizeMm - textWidth) / 2;
-                            doc.text(displayName, textX, textY);
-                            
-                            doc.setFontSize(5);
-                            const priceText = `Price: ${qr.price}`;
-                            const priceWidth = doc.getTextWidth(priceText);
-                            const priceX = x + (qrSizeMm - priceWidth) / 2;
-                            doc.text(priceText, priceX, textY + 4);
-                            
-                            // Add page number footer
-                            if (currentPageCount === 0) {
-                                doc.setFontSize(8);
-                                doc.text(`Page ${pageNumber}`, 105, 287, { align: 'center' });
-                            }
+                    // Add product header at the top of the first page for this product
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`Product: ${productName}`, 105, 10, { align: 'center' });
+                    doc.setFontSize(10);
+                    doc.text(`Category: ${productQRs[0].category} | Quantity: ${productQRs.length}`, 105, 16, { align: 'center' });
+                    
+                    // Add a separator line
+                    doc.setDrawColor(200, 200, 200);
+                    doc.setLineWidth(0.5);
+                    doc.line(10, 20, 200, 20);
 
-                            addedQRs.add(qr.productNo);
-                            currentPageCount++;
-                            totalCount++;
+                    // Start QR codes from Y position 25 (below the header)
+                    let startY = 25;
+                    
+                    // Add QR codes for this product
+                    for (let i = 0; i < productQRs.length; i++) {
+                        const qr = productQRs[i];
+                        
+                        // Add new page if current page is full (max 100 QR codes per page)
+                        if (currentPageCount >= cols * rows) {
+                            doc.addPage();
+                            totalPages++;
+                            currentPageCount = 0;
+                            startY = 25; // Reset Y position for new page
                             
-                            // Update progress
-                            const percent = 10 + ((i + 1) / generatedQRs.length) * 70;
-                            updateProgress(percent, `Adding QR codes to PDF... ${addedQRs.size}/${generatedQRs.length}`);
-                            
-                            // Small delay every 20 items to prevent freezing
-                            if (i % 20 === 0 && i > 0) {
-                                await new Promise(resolve => setTimeout(resolve, 30));
-                            }
-                        } catch (error) {
-                            console.error(`Error adding QR code ${qr.productNo}:`, error);
-                            // Try to find canvas directly if not in our storage
-                            try {
-                                const directCanvas = document.querySelector(`#qr-${qr.productNo} canvas`);
-                                if (directCanvas) {
-                                    qrCanvases[qr.productNo] = directCanvas;
-                                    i--; // Retry this QR code
-                                }
-                            } catch (e) {
-                                console.error(`Could not find canvas for ${qr.productNo}`);
-                            }
+                            // Add product header on new pages too
+                            doc.setFontSize(14);
+                            doc.setFont('helvetica', 'bold');
+                            doc.text(`Product: ${productName} (Continued)`, 105, 10, { align: 'center' });
+                            doc.setFontSize(10);
+                            doc.text(`Category: ${productQRs[0].category} | Quantity: ${productQRs.length}`, 105, 16, { align: 'center' });
+                            doc.line(10, 20, 200, 20);
                         }
-                    } else {
-                        // Canvas not ready yet, wait a bit and retry
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                        i--; // Retry this QR code
-                        continue;
+
+                        const col = currentPageCount % cols;
+                        const row = Math.floor(currentPageCount / cols);
+                        
+                        const x = startX + col * spacingX;
+                        const y = startY + row * spacingY;
+
+                        // Get canvas from our stored canvases
+                        const canvas = qrCanvases[qr.productNo];
+                        
+                        if (canvas) {
+                            try {
+                                const imgData = canvas.toDataURL('image/png');
+                                doc.addImage(imgData, 'PNG', x, y, qrSizeMm, qrSizeMm);
+                                
+                                const textY = y + qrSizeMm + 3;
+                                
+                                doc.setFontSize(6);
+                                doc.setFont('helvetica', 'normal');
+                                let displayName = qr.name;
+                                if (displayName.length > 16) {
+                                    displayName = displayName.substring(0, 15) + '…';
+                                }
+                                
+                                const textWidth = doc.getTextWidth(displayName);
+                                const textX = x + (qrSizeMm - textWidth) / 2;
+                                doc.text(displayName, textX, textY);
+                                
+                                doc.setFontSize(5);
+                                const priceText = `Price: ${qr.price}`;
+                                const priceWidth = doc.getTextWidth(priceText);
+                                const priceX = x + (qrSizeMm - priceWidth) / 2;
+                                doc.text(priceText, priceX, textY + 4);
+                                
+                                // Add page number footer
+                                if (currentPageCount === 0) {
+                                    doc.setFontSize(8);
+                                    doc.text(`Page ${totalPages + 1} - ${productName}`, 105, 287, { align: 'center' });
+                                }
+
+                                addedQRs.add(qr.productNo);
+                                currentPageCount++;
+                                
+                                // Update progress
+                                const qrIndex = Object.values(productGroups).slice(0, p).reduce((sum, arr) => sum + arr.length, 0) + i + 1;
+                                const totalQRCodes = generatedQRs.length;
+                                const percent = 10 + (qrIndex / totalQRCodes) * 70;
+                                updateProgress(percent, `Adding ${productName} QR codes... ${qrIndex}/${totalQRCodes}`);
+                                
+                                // Small delay every 20 items to prevent freezing
+                                if (i % 20 === 0 && i > 0) {
+                                    await new Promise(resolve => setTimeout(resolve, 30));
+                                }
+                            } catch (error) {
+                                console.error(`Error adding QR code ${qr.productNo}:`, error);
+                                // Try to find canvas directly if not in our storage
+                                try {
+                                    const directCanvas = document.querySelector(`#qr-${qr.productNo} canvas`);
+                                    if (directCanvas) {
+                                        qrCanvases[qr.productNo] = directCanvas;
+                                        i--; // Retry this QR code
+                                    }
+                                } catch (e) {
+                                    console.error(`Could not find canvas for ${qr.productNo}`);
+                                }
+                            }
+                        } else {
+                            // Canvas not ready yet, wait a bit and retry
+                            await new Promise(resolve => setTimeout(resolve, 50));
+                            i--; // Retry this QR code
+                            continue;
+                        }
                     }
+                    
+                    currentProductIndex++;
                 }
 
                 // Verify all QR codes were added
@@ -982,17 +1032,33 @@
                 updateProgress(90, 'Finalizing PDF...');
                 await new Promise(resolve => setTimeout(resolve, 100));
 
-                // Add summary page if we have multiple pages
-                if (pageNumber > 1) {
-                    doc.addPage();
-                    doc.setFontSize(16);
-                    doc.text('QR Code Summary', 105, 40, { align: 'center' });
+                // Add summary page
+                doc.addPage();
+                doc.setFontSize(16);
+                doc.text('QR Code Summary', 105, 40, { align: 'center' });
+                
+                doc.setFontSize(12);
+                doc.text(`Total Products: ${products.length}`, 105, 60, { align: 'center' });
+                doc.text(`Total QR Codes: ${addedQRs.size}`, 105, 70, { align: 'center' });
+                doc.text(`Total Pages: ${totalPages + 1}`, 105, 80, { align: 'center' });
+                doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 90, { align: 'center' });
+                
+                // List all products
+                doc.setFontSize(10);
+                let yPos = 110;
+                doc.text('Products Included:', 20, yPos);
+                yPos += 8;
+                
+                products.forEach((product, index) => {
+                    const productQRCount = generatedQRs.filter(qr => qr.name === product.name).length;
+                    doc.text(`${index + 1}. ${product.name} - ${productQRCount} QR codes`, 25, yPos);
+                    yPos += 6;
                     
-                    doc.setFontSize(12);
-                    doc.text(`Total QR Codes: ${addedQRs.size}`, 105, 60, { align: 'center' });
-                    doc.text(`Total Pages: ${pageNumber}`, 105, 70, { align: 'center' });
-                    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 80, { align: 'center' });
-                }
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                });
 
                 // Download PDF
                 const pdfBlob = doc.output('blob');
