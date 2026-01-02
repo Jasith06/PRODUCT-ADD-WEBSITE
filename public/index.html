@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
+        /* Your existing CSS remains the same */
         * {
             margin: 0;
             padding: 0;
@@ -525,6 +526,7 @@
         let products = [];
         let generatedQRs = [];
         let currentJsonData = null;
+        let qrCanvases = {}; // Store all QR canvases for PDF generation
 
         // Set default dates
         window.onload = function() {
@@ -631,6 +633,7 @@
         async function generateQRCodesBatch(qrList, batchSize = 25) {
             const qrPreview = document.getElementById('qrPreview');
             qrPreview.innerHTML = '';
+            qrCanvases = {}; // Reset canvas storage
 
             for (let i = 0; i < qrList.length; i += batchSize) {
                 const batch = qrList.slice(i, i + batchSize);
@@ -641,15 +644,25 @@
                 batch.forEach(qr => {
                     const qrDiv = document.createElement('div');
                     qrDiv.className = 'qr-item';
-                    qrDiv.innerHTML = `<div id="qr-${qr.productNo}"></div><p>${qr.name}<br>${qr.productNo}</p>`;
+                    const qrId = `qr-${qr.productNo}`;
+                    qrDiv.innerHTML = `<div id="${qrId}"></div><p>${qr.name}<br>${qr.productNo}</p>`;
                     qrPreview.appendChild(qrDiv);
 
-                    new QRCode(document.getElementById(`qr-${qr.productNo}`), {
+                    const qrContainer = document.getElementById(qrId);
+                    new QRCode(qrContainer, {
                         text: qr.data,
                         width: 128,
                         height: 128,
                         correctLevel: QRCode.CorrectLevel.M
                     });
+
+                    // Store the canvas reference for later PDF generation
+                    setTimeout(() => {
+                        const canvas = qrContainer.querySelector('canvas');
+                        if (canvas) {
+                            qrCanvases[qr.productNo] = canvas;
+                        }
+                    }, 100);
                 });
 
                 // Small delay to prevent browser freeze
@@ -657,6 +670,9 @@
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
             }
+
+            // Wait a bit longer for all canvases to render
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         async function generateAll() {
@@ -682,7 +698,9 @@
                             name: product.name,
                             price: product.price,
                             category: product.category,
-                            data: data
+                            data: data,
+                            mfd: product.mfd,
+                            exp: product.exp
                         });
                     }
                 });
@@ -855,10 +873,16 @@
                 let totalCount = 0;
                 let currentPageCount = 0;
                 let pageNumber = 1;
+                let addedQRs = new Set(); // Track which QR codes we've added
 
-                // Generate PDF with proper page management
+                // Generate PDF ensuring all QR codes are included
                 for (let i = 0; i < generatedQRs.length; i++) {
                     const qr = generatedQRs[i];
+                    
+                    // Skip if we've already added this QR code
+                    if (addedQRs.has(qr.productNo)) {
+                        continue;
+                    }
                     
                     // Add new page if current page is full
                     if (currentPageCount >= cols * rows) {
@@ -873,7 +897,9 @@
                     const x = startX + col * spacingX;
                     const y = startYTop + row * spacingY;
 
-                    const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
+                    // Get canvas from our stored canvases
+                    const canvas = qrCanvases[qr.productNo];
+                    
                     if (canvas) {
                         try {
                             const imgData = canvas.toDataURL('image/png');
@@ -904,25 +930,65 @@
                                 doc.text(`Page ${pageNumber}`, 105, 287, { align: 'center' });
                             }
 
+                            addedQRs.add(qr.productNo);
                             currentPageCount++;
                             totalCount++;
                             
                             // Update progress
                             const percent = 10 + ((i + 1) / generatedQRs.length) * 70;
-                            updateProgress(percent, `Adding QR codes to PDF... ${i + 1}/${generatedQRs.length}`);
+                            updateProgress(percent, `Adding QR codes to PDF... ${addedQRs.size}/${generatedQRs.length}`);
                             
-                            // Small delay every 50 items to prevent freezing
-                            if (i % 50 === 0 && i > 0) {
-                                await new Promise(resolve => setTimeout(resolve, 50));
+                            // Small delay every 20 items to prevent freezing
+                            if (i % 20 === 0 && i > 0) {
+                                await new Promise(resolve => setTimeout(resolve, 30));
                             }
                         } catch (error) {
                             console.error(`Error adding QR code ${qr.productNo}:`, error);
+                            // Try to find canvas directly if not in our storage
+                            try {
+                                const directCanvas = document.querySelector(`#qr-${qr.productNo} canvas`);
+                                if (directCanvas) {
+                                    qrCanvases[qr.productNo] = directCanvas;
+                                    i--; // Retry this QR code
+                                }
+                            } catch (e) {
+                                console.error(`Could not find canvas for ${qr.productNo}`);
+                            }
+                        }
+                    } else {
+                        // Canvas not ready yet, wait a bit and retry
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        i--; // Retry this QR code
+                        continue;
+                    }
+                }
+
+                // Verify all QR codes were added
+                if (addedQRs.size < generatedQRs.length) {
+                    console.warn(`Only ${addedQRs.size} out of ${generatedQRs.length} QR codes were added to PDF`);
+                    
+                    // Try to add any missing QR codes
+                    for (const qr of generatedQRs) {
+                        if (!addedQRs.has(qr.productNo)) {
+                            console.log(`Missing QR code: ${qr.productNo}`);
                         }
                     }
                 }
 
                 updateProgress(90, 'Finalizing PDF...');
                 await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Add summary page if we have multiple pages
+                if (pageNumber > 1) {
+                    doc.addPage();
+                    doc.setFontSize(16);
+                    doc.text('QR Code Summary', 105, 40, { align: 'center' });
+                    
+                    doc.setFontSize(12);
+                    doc.text(`Total QR Codes: ${addedQRs.size}`, 105, 60, { align: 'center' });
+                    doc.text(`Total Pages: ${pageNumber}`, 105, 70, { align: 'center' });
+                    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 80, { align: 'center' });
+                }
 
                 // Download PDF
                 const pdfBlob = doc.output('blob');
