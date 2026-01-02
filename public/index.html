@@ -474,7 +474,10 @@
 
             <!-- Product List Section -->
             <div class="section">
-                <h2 class="section-title">📦 Products List </h2>
+                <h2 class="section-title">📦 Products List (<span id="productCountDisplay">0</span>)</h2>
+                <div id="productList" class="product-list">
+                    <p style="text-align: center; color: #999; padding: 20px;">No products added yet. Add your first product above! 👆</p>
+                </div>
             </div>
 
             <!-- Actions Section -->
@@ -576,12 +579,12 @@
 
         function updateProductList() {
             const listDiv = document.getElementById('productList');
-            const countSpan = document.getElementById('productCount');
+            const countSpan = document.getElementById('productCountDisplay');
             
             countSpan.textContent = products.length;
 
             if (products.length === 0) {
-                listDiv.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">No products added yet. Add your first product above! 👆</p>';
+                listDiv.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No products added yet. Add your first product above! 👆</p>';
                 return;
             }
 
@@ -849,48 +852,30 @@
                 const startX = 12;
                 const startYTop = 15;
                 
-                let count = 0;
+                let totalCount = 0;
+                let currentPageCount = 0;
+                let pageNumber = 1;
 
-                // Group QR codes by product
-                const productGroups = {};
-                generatedQRs.forEach(qr => {
-                    const productName = qr.name;
-                    if (!productGroups[productName]) {
-                        productGroups[productName] = [];
-                    }
-                    productGroups[productName].push(qr);
-                });
-
-                const totalProducts = Object.keys(productGroups).length;
-                let processedProducts = 0;
-
-                // Generate PDF with batching
-                for (const [productName, qrs] of Object.entries(productGroups)) {
-                    processedProducts++;
-                    const percent = 10 + (processedProducts / totalProducts) * 70; // 10-80%
-                    updateProgress(percent, `Adding ${productName} to PDF... (${processedProducts}/${totalProducts})`);
-
-                    if (processedProducts > 1) {
+                // Generate PDF with proper page management
+                for (let i = 0; i < generatedQRs.length; i++) {
+                    const qr = generatedQRs[i];
+                    
+                    // Add new page if current page is full
+                    if (currentPageCount >= cols * rows) {
                         doc.addPage();
-                        count = 0;
+                        currentPageCount = 0;
+                        pageNumber++;
                     }
 
-                    for (let qrIndex = 0; qrIndex < qrs.length; qrIndex++) {
-                        const qr = qrs[qrIndex];
-                        
-                        if (count > 0 && count % (cols * rows) === 0) {
-                            doc.addPage();
-                            count = 0;
-                        }
+                    const col = currentPageCount % cols;
+                    const row = Math.floor(currentPageCount / cols) % rows;
+                    
+                    const x = startX + col * spacingX;
+                    const y = startYTop + row * spacingY;
 
-                        const col = count % cols;
-                        const row = Math.floor(count / cols) % rows;
-                        
-                        const x = startX + col * spacingX;
-                        const y = startYTop + row * spacingY;
-
-                        const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
-                        if (canvas) {
+                    const canvas = document.querySelector(`#qr-${qr.productNo} canvas`);
+                    if (canvas) {
+                        try {
                             const imgData = canvas.toDataURL('image/png');
                             doc.addImage(imgData, 'PNG', x, y, qrSizeMm, qrSizeMm);
                             
@@ -912,14 +897,27 @@
                             const priceWidth = doc.getTextWidth(priceText);
                             const priceX = x + (qrSizeMm - priceWidth) / 2;
                             doc.text(priceText, priceX, textY + 4);
+                            
+                            // Add page number footer
+                            if (currentPageCount === 0) {
+                                doc.setFontSize(8);
+                                doc.text(`Page ${pageNumber}`, 105, 287, { align: 'center' });
+                            }
+
+                            currentPageCount++;
+                            totalCount++;
+                            
+                            // Update progress
+                            const percent = 10 + ((i + 1) / generatedQRs.length) * 70;
+                            updateProgress(percent, `Adding QR codes to PDF... ${i + 1}/${generatedQRs.length}`);
+                            
+                            // Small delay every 50 items to prevent freezing
+                            if (i % 50 === 0 && i > 0) {
+                                await new Promise(resolve => setTimeout(resolve, 50));
+                            }
+                        } catch (error) {
+                            console.error(`Error adding QR code ${qr.productNo}:`, error);
                         }
-
-                        count++;
-                    }
-
-                    // Small delay between products
-                    if (processedProducts < totalProducts) {
-                        await new Promise(resolve => setTimeout(resolve, 50));
                     }
                 }
 
