@@ -8,7 +8,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* Your existing CSS remains the same */
         * {
             margin: 0;
             padding: 0;
@@ -451,8 +450,8 @@
                             <input type="number" id="productWholesalePrice" placeholder="120" required>
                         </div>
                         <div class="form-group">
-                            <label for="productCount">Quantity *</label>
-                            <input type="number" id="productCount" placeholder="3" min="1" required>
+                            <label for="productQuantity">Quantity *</label>
+                            <input type="number" id="productQuantity" placeholder="3" min="1" required>
                         </div>
                     </div>
                     <div class="form-row">
@@ -475,7 +474,7 @@
 
             <!-- Product List Section -->
             <div class="section">
-                <h2 class="section-title">📦 Products List </h2>
+                <h2 class="section-title">📦 Products List (<span id="productCountDisplay">0</span>)</h2>
                 <div id="productList" class="product-list">
                     <p style="text-align: center; color: #999; padding: 20px;">No products added yet. Add your first product above! 👆</p>
                 </div>
@@ -543,13 +542,18 @@
             const category = document.getElementById('productCategory').value;
             const price = parseFloat(document.getElementById('productPrice').value);
             const wholesalePrice = parseFloat(document.getElementById('productWholesalePrice').value);
-            const count = parseInt(document.getElementById('productCount').value);
+            const quantity = parseInt(document.getElementById('productQuantity').value);
             const mfd = document.getElementById('productMfd').value;
             const exp = document.getElementById('productExp').value;
             const prefix = document.getElementById('productPrefix').value.trim().toUpperCase();
 
-            if (!name || !category || !price || !wholesalePrice || !count || !mfd || !exp || !prefix) {
+            if (!name || !category || !price || !wholesalePrice || !quantity || !mfd || !exp || !prefix) {
                 alert('⚠️ Please fill all fields!');
+                return;
+            }
+
+            if (price <= 0 || wholesalePrice <= 0 || quantity <= 0) {
+                alert('⚠️ Price, wholesale price, and quantity must be greater than 0!');
                 return;
             }
 
@@ -559,7 +563,7 @@
                 price: `Rs. ${price}`,
                 priceNum: price,
                 wholesalePrice: wholesalePrice,
-                count: count,
+                quantity: quantity,
                 mfd: mfd,
                 exp: exp,
                 prefix: prefix
@@ -574,7 +578,7 @@
             document.getElementById('productName').value = '';
             document.getElementById('productPrice').value = '';
             document.getElementById('productWholesalePrice').value = '';
-            document.getElementById('productCount').value = '';
+            document.getElementById('productQuantity').value = '';
             document.getElementById('productPrefix').value = '';
             document.getElementById('productCategory').value = 'TABLETS';
         }
@@ -594,7 +598,7 @@
                 <div class="product-item">
                     <div class="product-info">
                         <h3>${product.name}<span class="category-badge">${product.category}</span></h3>
-                        <p><strong>Price:</strong> ${product.price} | <strong>Wholesale:</strong> Rs. ${product.wholesalePrice} | <strong>Qty:</strong> ${product.count} | <strong>Prefix:</strong> ${product.prefix}</p>
+                        <p><strong>Price:</strong> ${product.price} | <strong>Wholesale:</strong> Rs. ${product.wholesalePrice} | <strong>Qty:</strong> ${product.quantity} | <strong>Prefix:</strong> ${product.prefix}</p>
                         <p><strong>MFD:</strong> ${product.mfd} | <strong>EXP:</strong> ${product.exp}</p>
                     </div>
                     <button class="btn btn-danger" onclick="removeProduct(${index})">🗑️ Remove</button>
@@ -689,7 +693,7 @@
                 updateProgress(10, 'Preparing data...');
                 
                 products.forEach(product => {
-                    for (let i = 1; i <= product.count; i++) {
+                    for (let i = 1; i <= product.quantity; i++) {
                         const productNo = `${product.prefix}-${String(i).padStart(3, '0')}`;
                         const data = `${product.name}|${product.price}|${product.mfd}|${product.exp}|${productNo}`;
                         
@@ -743,7 +747,7 @@
             const inventory = [];
             
             products.forEach(product => {
-                for (let i = 1; i <= product.count; i++) {
+                for (let i = 1; i <= product.quantity; i++) {
                     const productNo = `${product.prefix}-${String(i).padStart(3, '0')}`;
                     
                     inventory.push({
