@@ -205,6 +205,18 @@
             box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
         }
 
+        .btn-link {
+            background: linear-gradient(135deg, #6c757d 0%, #8e9aa5 100%);
+            color: white;
+            border: none;
+        }
+
+        .btn-link:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5a6268 0%, #7b8793 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+
         .product-list {
             margin-top: 30px;
         }
@@ -397,6 +409,129 @@
             padding: 10px;
             background: white;
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: #666;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .link-qr-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(248, 249, 250, 0.95);
+            border-radius: 15px;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+
+        .link-qr-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .link-qr-preview {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .link-qr-preview canvas {
+            max-width: 256px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .link-qr-preview p {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .link-download-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .link-download-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -420,9 +555,8 @@
                             <label for="productCategory">Category *</label>
                             <select id="productCategory" required>
                                 <option value="TABLETS">TABLETS</option>
-                                <option value="LIQUID MEDICINES">LIQUID MEDICINES</option>
-                                <option value="EYE DROPS">EYE DROPS</option>
-                                <option value="CHOCOLATES">CHOCOLATES</option>
+                                <option value="BEAUTY">BEAUTY</option>
+                                <option value="TOILETRIES">TOILETRIES</option>
                                 <option value="ICE_CREAM">ICE CREAM</option>
                                 <option value="DAIRY">DAIRY</option>
                                 <option value="TOYS">TOYS</option>
@@ -431,9 +565,7 @@
                                 <option value="PERSONAL_CARE">PERSONAL CARE</option>
                                 <option value="BABY_PRODUCTS">BABY PRODUCTS</option>
                                 <option value="HOUSEHOLD">HOUSEHOLD</option>
-                                <option value="BEAUTY">BEAUTY</option>
                                 <option value="CLEANING_PRODUCTS">CLEANING PRODUCTS</option>
-                                <option value="TOILETRIES">TOILETRIES</option>
                                 <option value="STATIONERY">STATIONERY</option>
                                 <option value="PET_FOOD">PET FOOD</option>
                                 <option value="HEALTH_SUPPLEMENTS">HEALTH SUPPLEMENTS</option>
@@ -490,6 +622,7 @@
                     <button class="btn btn-success" onclick="generateAll()" id="generateBtn">🚀 Generate QR Codes & JSON</button>
                     <button class="btn btn-pdf" onclick="downloadPDF()" id="pdfBtn">📄 Download PDF</button>
                     <button class="btn btn-json" onclick="downloadJSON()" id="jsonBtn">💾 Download JSON</button>
+                    <button class="btn btn-link" onclick="openLinkModal()">🔗 Link to QR</button>
                 </div>
                 
                 <!-- Progress Bar -->
@@ -521,6 +654,34 @@
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">🔳 QR Code Preview</h3>
                 <div id="qrPreview" class="qr-preview"></div>
             </div>
+
+            <!-- Link QR Section -->
+            <div id="linkQRSection" class="link-qr-section">
+                <h3 style="margin-bottom: 15px;">🔗 Link QR Code Generated</h3>
+                <div class="link-qr-container">
+                    <div id="linkQRPreview" class="link-qr-preview">
+                        <!-- QR code will be generated here -->
+                    </div>
+                    <p id="linkText" style="text-align: center; color: #666;"></p>
+                    <button class="link-download-btn" onclick="downloadLinkQR()">📥 Download QR Code</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Link Input -->
+    <div id="linkModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeLinkModal()">×</button>
+            <h3 class="modal-title">🔗 Generate QR Code for Link</h3>
+            <p style="text-align: center; margin-bottom: 20px; color: #666;">
+                Paste or type any link (Google Drive, URL, etc.)
+            </p>
+            <input type="text" id="linkInput" class="modal-input" placeholder="https://drive.google.com/..." autofocus>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="generateLinkQR()">Generate QR</button>
+                <button class="btn btn-link" onclick="closeLinkModal()">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -529,6 +690,8 @@
         let generatedQRs = [];
         let currentJsonData = null;
         let qrCanvases = {}; // Store all QR canvases for PDF generation
+        let currentLinkQR = null; // Store the current link QR code
+        let currentLinkText = ''; // Store the current link text
 
         // Set default dates
         window.onload = function() {
@@ -635,6 +798,95 @@
             progressFill.style.width = percent + '%';
             progressFill.textContent = Math.round(percent) + '%';
             progressText.textContent = text;
+        }
+
+        // Modal Functions
+        function openLinkModal() {
+            document.getElementById('linkModal').style.display = 'flex';
+            document.getElementById('linkInput').focus();
+        }
+
+        function closeLinkModal() {
+            document.getElementById('linkModal').style.display = 'none';
+            document.getElementById('linkInput').value = '';
+        }
+
+        function generateLinkQR() {
+            const link = document.getElementById('linkInput').value.trim();
+            
+            if (!link) {
+                alert('⚠️ Please enter a link!');
+                return;
+            }
+
+            // Basic URL validation
+            try {
+                // Try to create a URL object to validate
+                new URL(link);
+            } catch (e) {
+                // If it's not a valid URL, try adding https://
+                if (!link.startsWith('http://') && !link.startsWith('https://')) {
+                    const linkWithProtocol = 'https://' + link;
+                    try {
+                        new URL(linkWithProtocol);
+                        currentLinkText = linkWithProtocol;
+                    } catch (e2) {
+                        alert('⚠️ Please enter a valid URL!');
+                        return;
+                    }
+                } else {
+                    alert('⚠️ Please enter a valid URL!');
+                    return;
+                }
+            }
+
+            if (!currentLinkText) {
+                currentLinkText = link;
+            }
+
+            // Clear previous QR code
+            const qrPreview = document.getElementById('linkQRPreview');
+            qrPreview.innerHTML = '';
+            
+            // Generate QR code
+            currentLinkQR = new QRCode(qrPreview, {
+                text: currentLinkText,
+                width: 256,
+                height: 256,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            // Update link text
+            document.getElementById('linkText').textContent = currentLinkText;
+            
+            // Show the link QR section
+            document.getElementById('linkQRSection').style.display = 'block';
+            
+            // Scroll to the link QR section
+            document.getElementById('linkQRSection').scrollIntoView({ behavior: 'smooth' });
+            
+            // Close the modal
+            closeLinkModal();
+        }
+
+        function downloadLinkQR() {
+            if (!currentLinkQR) {
+                alert('⚠️ Please generate a link QR code first!');
+                return;
+            }
+
+            // Get the canvas element
+            const canvas = document.querySelector('#linkQRPreview canvas');
+            if (!canvas) {
+                alert('⚠️ QR code not found!');
+                return;
+            }
+
+            // Create a temporary link to download the image
+            const link = document.createElement('a');
+            link.download = `link_qr_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
         }
 
         // Batch process QR codes with delays
